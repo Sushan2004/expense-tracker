@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useAppContext } from "../../context/AppContext";
 import AddTransactionForm from "../../components/ui/AddTransactionForm";
 import ExportCsvButton from "../../components/ui/ExportCsvButton";
 import StatusState from "../../components/ui/StatusState";
@@ -18,15 +18,13 @@ export default function TransactionsPage() {
   const {
     transactions,
     favorites,
-    loading,
-    error,
     isEmpty,
     addTransaction,
     deleteTransaction,
     toggleFavorite,
     recentSearches,
     setRecentSearches
-  } = useOutletContext();
+  } = useAppContext();
 
   const [filters, setFilters] = useState(initialFilters);
   const categoryOptions = useMemo(
@@ -50,14 +48,6 @@ export default function TransactionsPage() {
 
     return () => clearTimeout(timeout);
   }, [filters.query, setRecentSearches]);
-
-  if (loading) {
-    return <StatusState type="loading" title="Loading transactions..." description="Getting records from your data source." />;
-  }
-
-  if (error) {
-    return <StatusState type="error" title="Unable to load transactions" description={error} />;
-  }
 
   return (
     <div className="page-content">

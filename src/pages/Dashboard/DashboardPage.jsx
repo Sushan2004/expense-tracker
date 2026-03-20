@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
 import ExpenseDonutChart from "../../components/charts/ExpenseDonutChart";
 import IncomeExpenseBarChart from "../../components/charts/IncomeExpenseBarChart";
 import IncomeExpenseSankeyChart from "../../components/charts/IncomeExpenseSankeyChart";
 import SpendingTrendLineChart from "../../components/charts/SpendingTrendLineChart";
+import { useAppContext } from "../../context/AppContext";
 import BudgetProgress from "../../components/ui/BudgetProgress";
 import RecentTransactions from "../../components/ui/RecentTransactions";
 import SpendingInsights from "../../components/ui/SpendingInsights";
@@ -20,7 +20,7 @@ import {
 } from "../../utils/helpers";
 
 export default function DashboardPage() {
-  const { transactions, favorites, loading, error, isEmpty, toggleFavorite } = useOutletContext();
+  const { transactions, favorites, isEmpty, toggleFavorite } = useAppContext();
 
   const summary = useMemo(() => getSummaryMetrics(transactions), [transactions]);
   const categoryData = useMemo(() => getExpenseCategoryData(transactions), [transactions]);
@@ -29,14 +29,6 @@ export default function DashboardPage() {
   const sankeyData = useMemo(() => getSankeyData(transactions), [transactions]);
   const insights = useMemo(() => getSpendingInsights(transactions), [transactions]);
   const recentTransactions = transactions.slice(0, 5);
-
-  if (loading) {
-    return <StatusState type="loading" title="Loading dashboard..." description="Fetching your latest financial activity." />;
-  }
-
-  if (error) {
-    return <StatusState type="error" title="Data load failed" description={error} />;
-  }
 
   if (isEmpty) {
     return (

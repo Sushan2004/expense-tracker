@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAppContext } from "../../context/AppContext";
 import { CATEGORY_ICONS, formatCurrency, formatDate } from "../../utils/helpers";
 
 export default function DetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { transactions, favorites, deleteTransaction, toggleFavorite } = useOutletContext();
+  const { transactions, favorites, deleteTransaction, toggleFavorite } = useAppContext();
 
   const transaction = useMemo(
     () => transactions.find((item) => String(item.id) === String(id)),

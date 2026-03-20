@@ -28,53 +28,6 @@ export const CATEGORY_ICONS = {
   Other: "🧩"
 };
 
-export const initialTransactionState = {
-  transactions: [],
-  favorites: []
-};
-
-export function transactionReducer(state, action) {
-  switch (action.type) {
-    case "INIT_TRANSACTIONS": {
-      return {
-        ...state,
-        transactions: action.payload
-      };
-    }
-    case "ADD_TRANSACTION": {
-      return {
-        ...state,
-        transactions: [action.payload, ...state.transactions]
-      };
-    }
-    case "DELETE_TRANSACTION": {
-      const id = action.payload;
-      return {
-        transactions: state.transactions.filter((item) => item.id !== id),
-        favorites: state.favorites.filter((favoriteId) => favoriteId !== id)
-      };
-    }
-    case "TOGGLE_FAVORITE": {
-      const id = action.payload;
-      const exists = state.favorites.includes(id);
-      return {
-        ...state,
-        favorites: exists
-          ? state.favorites.filter((favoriteId) => favoriteId !== id)
-          : [id, ...state.favorites]
-      };
-    }
-    case "SET_FAVORITES": {
-      return {
-        ...state,
-        favorites: action.payload
-      };
-    }
-    default:
-      return state;
-  }
-}
-
 export function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
