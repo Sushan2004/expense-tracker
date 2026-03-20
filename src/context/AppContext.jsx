@@ -2,6 +2,10 @@ import PropTypes from "prop-types";
 import { createContext, useContext, useEffect, useMemo } from "react";
 import seedTransactions from "../data/transactions.json";
 import useLocalStorage from "../hooks/useLocalStorage";
+import {
+  coerceCustomExpenseCategories,
+  resolveExpenseCategoryName
+} from "../utils/helpers";
 
 const AppContext = createContext(null);
 
@@ -53,10 +57,15 @@ function deleteByTypeAndId(current, type, id) {
 export function AppProvider({ children }) {
   const [storedTransactions, setStoredTransactions] = useLocalStorage("transactions", SEED_TRANSACTIONS);
   const [storedFavorites, setStoredFavorites] = useLocalStorage("favoriteTransactions", []);
+  const [storedCustomExpenseCategories, setStoredCustomExpenseCategories] = useLocalStorage("customExpenseCategories", []);
 
   const transactions = useMemo(
     () => coerceTransactionList(storedTransactions),
     [storedTransactions]
+  );
+  const customExpenseCategories = useMemo(
+    () => coerceCustomExpenseCategories(storedCustomExpenseCategories, transactions),
+    [storedCustomExpenseCategories, transactions]
   );
 
   const favorites = useMemo(() => {
@@ -82,19 +91,30 @@ export function AppProvider({ children }) {
   const value = useMemo(
     () => ({
       transactions,
+      customExpenseCategories,
       favorites,
       isEmpty: transactions.length === 0,
       addTransaction: (transaction) => {
         setStoredTransactions((current) => prependTransaction(current, transaction));
       },
       addExpense: (expense) => {
+        const resolvedCategory =
+          resolveExpenseCategoryName(expense?.category, customExpenseCategories) ||
+          String(expense?.category || "").trim() ||
+          "Other";
+
         setStoredTransactions((current) =>
           prependTransaction(current, {
             ...expense,
             type: "expense",
             incomeSource: "",
-            category: expense?.category || "Other"
+            category: resolvedCategory
           })
+        );
+      },
+      addCustomExpenseCategory: (name) => {
+        setStoredCustomExpenseCategories((current) =>
+          coerceCustomExpenseCategories([...(Array.isArray(current) ? current : []), name])
         );
       },
       addIncomeEntry: (incomeEntry) => {
@@ -162,7 +182,14 @@ export function AppProvider({ children }) {
         });
       }
     }),
-    [favorites, setStoredFavorites, setStoredTransactions, transactions]
+    [
+      customExpenseCategories,
+      favorites,
+      setStoredCustomExpenseCategories,
+      setStoredFavorites,
+      setStoredTransactions,
+      transactions
+    ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

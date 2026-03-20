@@ -1,4 +1,6 @@
-export const CATEGORY_OPTIONS = [
+export const CUSTOM_EXPENSE_CATEGORY_TRIGGER = "Other";
+
+export const BUILT_IN_EXPENSE_CATEGORIES = [
   "Food",
   "Rent",
   "Bills",
@@ -7,9 +9,10 @@ export const CATEGORY_OPTIONS = [
   "Learning",
   "Health",
   "Entertainment",
-  "Investments",
-  "Other"
+  "Investments"
 ];
+
+export const CATEGORY_OPTIONS = [...BUILT_IN_EXPENSE_CATEGORIES, CUSTOM_EXPENSE_CATEGORY_TRIGGER];
 
 export const INCOME_SOURCE_OPTIONS = ["Salary", "Freelance", "Business", "Investment", "Gift", "Other"];
 
@@ -29,6 +32,91 @@ export const CATEGORY_ICONS = {
   Freelance: "🧑‍💻",
   Other: "🧩"
 };
+
+export function normalizeCategoryName(value) {
+  return String(value || "").trim();
+}
+
+export function isSameCategoryName(left, right) {
+  return normalizeCategoryName(left).toLowerCase() === normalizeCategoryName(right).toLowerCase();
+}
+
+function findCanonicalCategoryName(value, categories) {
+  const normalizedValue = normalizeCategoryName(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return categories.find((category) => isSameCategoryName(category, normalizedValue)) || "";
+}
+
+function getTransactionCustomExpenseCategories(transactions) {
+  if (!Array.isArray(transactions)) {
+    return [];
+  }
+
+  return transactions
+    .filter((item) => item?.type === "expense")
+    .map((item) => normalizeCategoryName(item?.category))
+    .filter((category) => {
+      if (!category || isSameCategoryName(category, CUSTOM_EXPENSE_CATEGORY_TRIGGER)) {
+        return false;
+      }
+
+      return !findCanonicalCategoryName(category, BUILT_IN_EXPENSE_CATEGORIES);
+    });
+}
+
+export function coerceCustomExpenseCategories(values, transactions = []) {
+  const result = [];
+  const candidates = [
+    ...(Array.isArray(values) ? values : []),
+    ...getTransactionCustomExpenseCategories(transactions)
+  ];
+
+  candidates.forEach((value) => {
+    const normalizedValue = normalizeCategoryName(value);
+
+    if (!normalizedValue || isSameCategoryName(normalizedValue, CUSTOM_EXPENSE_CATEGORY_TRIGGER)) {
+      return;
+    }
+
+    if (findCanonicalCategoryName(normalizedValue, BUILT_IN_EXPENSE_CATEGORIES)) {
+      return;
+    }
+
+    if (findCanonicalCategoryName(normalizedValue, result)) {
+      return;
+    }
+
+    result.push(normalizedValue);
+  });
+
+  return result;
+}
+
+export function resolveExpenseCategoryName(value, customCategories = []) {
+  const normalizedValue = normalizeCategoryName(value);
+
+  if (!normalizedValue || isSameCategoryName(normalizedValue, CUSTOM_EXPENSE_CATEGORY_TRIGGER)) {
+    return "";
+  }
+
+  return (
+    findCanonicalCategoryName(normalizedValue, BUILT_IN_EXPENSE_CATEGORIES) ||
+    findCanonicalCategoryName(normalizedValue, coerceCustomExpenseCategories(customCategories)) ||
+    normalizedValue
+  );
+}
+
+export function getExpenseCategoryOptions(customCategories = []) {
+  return [
+    ...BUILT_IN_EXPENSE_CATEGORIES,
+    ...coerceCustomExpenseCategories(customCategories),
+    CUSTOM_EXPENSE_CATEGORY_TRIGGER
+  ];
+}
 
 export function formatCurrency(value, currency = "USD", options = {}) {
   const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -267,8 +355,9 @@ export function validateTransaction(formValues) {
   return errors;
 }
 
-export function validateExpense(formValues) {
+export function validateExpense(formValues, customCategories = []) {
   const errors = {};
+  const category = normalizeCategoryName(formValues.category);
 
   if (!formValues.description.trim()) {
     errors.description = "Description is required.";
@@ -276,8 +365,11 @@ export function validateExpense(formValues) {
   if (!formValues.amount || Number(formValues.amount) <= 0) {
     errors.amount = "Amount must be greater than zero.";
   }
-  if (!formValues.category.trim()) {
+  if (!category) {
     errors.category = "Category is required.";
+  }
+  if (isSameCategoryName(category, CUSTOM_EXPENSE_CATEGORY_TRIGGER) && !resolveExpenseCategoryName(formValues.customCategory, customCategories)) {
+    errors.customCategory = "Enter a custom category.";
   }
   if (!formValues.date) {
     errors.date = "Date is required.";
