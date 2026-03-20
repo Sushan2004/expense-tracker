@@ -53,14 +53,17 @@ export default function DashboardPage() {
     }),
     [sankeyData, convertAmount]
   );
-  const recentTransactions = transactions.slice(0, 5);
+  const recentExpenses = useMemo(
+    () => transactions.filter((item) => item.type === "expense").slice(0, 5),
+    [transactions]
+  );
 
   if (isEmpty) {
     return (
       <StatusState
         type="empty"
-        title="No transaction data yet"
-        description="Start by adding transactions from the Transactions page."
+        title="No finance data yet"
+        description="Start by adding income sources or expenses from the Income or Expense pages."
       />
     );
   }
@@ -82,7 +85,7 @@ export default function DashboardPage() {
       </section>
 
       <section className="widgets-grid">
-        <RecentTransactions transactions={recentTransactions} favorites={favorites} onToggleFavorite={toggleFavorite} />
+        <RecentTransactions expenses={recentExpenses} favorites={favorites} onToggleFavorite={toggleFavorite} />
         <BudgetProgress expenses={summary.expenses} budget={2500} />
         <SpendingInsights insights={insights} />
       </section>

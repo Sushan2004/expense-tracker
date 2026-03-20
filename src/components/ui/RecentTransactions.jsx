@@ -1,23 +1,24 @@
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useCurrency } from "../../context/CurrencyContext";
-import { CATEGORY_ICONS, formatDate } from "../../utils/helpers";
+import { CATEGORY_ICONS, formatDate, formatRecurringFrequency } from "../../utils/helpers";
 
-export default function RecentTransactions({ transactions, favorites, onToggleFavorite }) {
+export default function RecentTransactions({ expenses, favorites, onToggleFavorite }) {
   const { formatCurrency } = useCurrency();
 
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Recent Transactions</h2>
-        <Link to="/transactions">View all</Link>
+        <h2>Recent Expenses</h2>
+        <Link to="/expenses">View all</Link>
       </div>
-      {transactions.length === 0 ? (
-        <p className="muted">No transactions available.</p>
+      {expenses.length === 0 ? (
+        <p className="muted">No expenses available.</p>
       ) : (
         <ul className="recent-list">
-          {transactions.map((item) => {
+          {expenses.map((item) => {
             const isFavorite = favorites.includes(item.id);
+
             return (
               <li key={item.id} className="recent-item">
                 <div>
@@ -26,26 +27,20 @@ export default function RecentTransactions({ transactions, favorites, onToggleFa
                   </p>
                   <small>
                     {item.category} - {formatDate(item.date)}
-                    {item.type === "income" && item.incomeSource ? ` - Source: ${item.incomeSource}` : ""}
-                    {item.type === "expense" && item.isRecurring
-                      ? ` - Recurring (${item.recurringFrequency || "unspecified"})`
-                      : ""}
+                    {item.isRecurring ? ` - Recurring (${formatRecurringFrequency(item.recurringFrequency)})` : ""}
                   </small>
                 </div>
                 <div className="row-actions">
-                  <span className={item.type === "expense" ? "expense" : "income"}>
-                    {item.type === "expense" ? "-" : "+"}
-                    {formatCurrency(item.amount)}
-                  </span>
+                  <span className="expense">{formatCurrency(item.amount)}</span>
                   <button
                     type="button"
                     className="ghost-btn"
                     aria-label={`Toggle favorite for ${item.description}`}
                     onClick={() => onToggleFavorite(item.id)}
                   >
-                    {isFavorite ? "★" : "☆"}
+                    {isFavorite ? "Favorited" : "Favorite"}
                   </button>
-                  <Link className="ghost-btn" to={`/details/${item.id}`}>
+                  <Link className="ghost-btn" to={`/expenses/${item.id}`}>
                     Details
                   </Link>
                 </div>
@@ -59,7 +54,7 @@ export default function RecentTransactions({ transactions, favorites, onToggleFa
 }
 
 RecentTransactions.propTypes = {
-  transactions: PropTypes.arrayOf(PropTypes.object).isRequired,
+  expenses: PropTypes.arrayOf(PropTypes.object).isRequired,
   favorites: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.number, PropTypes.string])).isRequired,
   onToggleFavorite: PropTypes.func.isRequired
 };

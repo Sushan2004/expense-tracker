@@ -13,6 +13,8 @@ export const CATEGORY_OPTIONS = [
 
 export const INCOME_SOURCE_OPTIONS = ["Salary", "Freelance", "Business", "Investment", "Gift", "Other"];
 
+export const RECURRING_FREQUENCY_OPTIONS = ["weekly", "monthly", "yearly"];
+
 export const CATEGORY_ICONS = {
   Food: "🍽️",
   Rent: "🏠",
@@ -49,6 +51,16 @@ export function formatDate(dateString) {
     day: "2-digit",
     year: "numeric"
   }).format(new Date(dateString));
+}
+
+export function formatRecurringFrequency(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (!normalized) {
+    return "Not set";
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
 export function getSummaryMetrics(transactions) {
@@ -150,8 +162,13 @@ export function getSankeyData(transactions) {
   return { nodes, links };
 }
 
-export function filterAndSortTransactions(transactions, filters) {
-  const { query, category, type, sortBy } = filters;
+export function filterAndSortTransactions(transactions, filters = {}) {
+  const {
+    query = "",
+    category = "all",
+    type = "all",
+    sortBy = "date"
+  } = filters;
 
   const filtered = transactions.filter((item) => {
     const textMatch = query
@@ -245,6 +262,41 @@ export function validateTransaction(formValues) {
   }
   if (formValues.type === "expense" && formValues.isRecurring && !formValues.recurringFrequency) {
     errors.recurringFrequency = "Select a recurrence frequency.";
+  }
+
+  return errors;
+}
+
+export function validateExpense(formValues) {
+  const errors = {};
+
+  if (!formValues.description.trim()) {
+    errors.description = "Description is required.";
+  }
+  if (!formValues.amount || Number(formValues.amount) <= 0) {
+    errors.amount = "Amount must be greater than zero.";
+  }
+  if (!formValues.category.trim()) {
+    errors.category = "Category is required.";
+  }
+  if (!formValues.date) {
+    errors.date = "Date is required.";
+  }
+  if (formValues.isRecurring && !formValues.recurringFrequency) {
+    errors.recurringFrequency = "Select a recurrence frequency.";
+  }
+
+  return errors;
+}
+
+export function validateIncomeSource(formValues) {
+  const errors = {};
+
+  if (!String(formValues.sourceName || "").trim()) {
+    errors.sourceName = "Source name is required.";
+  }
+  if (!formValues.amount || Number(formValues.amount) <= 0) {
+    errors.amount = "Amount must be greater than zero.";
   }
 
   return errors;

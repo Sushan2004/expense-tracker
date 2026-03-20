@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import seedTransactions from "../data/transactions.json";
 import useLocalStorage from "../hooks/useLocalStorage";
 
@@ -36,22 +36,23 @@ function coerceTransactionList(value, fallback = SEED_TRANSACTIONS) {
   return sortTransactions(value.map(normalizeTransaction));
 }
 
-function normalizeSearchHistory(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+function prependTransaction(current, transaction) {
+  return sortTransactions([normalizeTransaction(transaction), ...coerceTransactionList(current)]);
+}
 
-  return value
-    .map((item) => String(item || "").trim())
-    .filter(Boolean)
-    .filter((item, index, list) => list.indexOf(item) === index)
-    .slice(0, 6);
+function deleteById(current, id) {
+  return coerceTransactionList(current).filter((transaction) => String(transaction.id) !== String(id));
+}
+
+function deleteByTypeAndId(current, type, id) {
+  return coerceTransactionList(current).filter(
+    (transaction) => transaction.type !== type || String(transaction.id) !== String(id)
+  );
 }
 
 export function AppProvider({ children }) {
   const [storedTransactions, setStoredTransactions] = useLocalStorage("transactions", SEED_TRANSACTIONS);
   const [storedFavorites, setStoredFavorites] = useLocalStorage("favoriteTransactions", []);
-  const [storedRecentSearches, setStoredRecentSearches] = useLocalStorage("recentSearches", []);
 
   const transactions = useMemo(
     () => coerceTransactionList(storedTransactions),
@@ -70,28 +71,77 @@ export function AppProvider({ children }) {
     });
   }, [storedFavorites, transactions]);
 
-  const recentSearches = useMemo(
-    () => normalizeSearchHistory(storedRecentSearches),
-    [storedRecentSearches]
-  );
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem("recentSearches");
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+  }, []);
 
   const value = useMemo(
     () => ({
       transactions,
       favorites,
-      recentSearches,
       isEmpty: transactions.length === 0,
       addTransaction: (transaction) => {
+        setStoredTransactions((current) => prependTransaction(current, transaction));
+      },
+      addExpense: (expense) => {
         setStoredTransactions((current) =>
-          sortTransactions([normalizeTransaction(transaction), ...coerceTransactionList(current)])
+          prependTransaction(current, {
+            ...expense,
+            type: "expense",
+            incomeSource: "",
+            category: expense?.category || "Other"
+          })
+        );
+      },
+      addIncomeEntry: (incomeEntry) => {
+        const sourceName = String(incomeEntry?.sourceName || incomeEntry?.incomeSource || incomeEntry?.description || "").trim();
+
+        setStoredTransactions((current) =>
+          prependTransaction(current, {
+            ...incomeEntry,
+            type: "income",
+            description: sourceName,
+            incomeSource: sourceName,
+            category: sourceName || "Other",
+            date: incomeEntry?.date || new Date().toISOString().slice(0, 10),
+            isRecurring: Boolean(incomeEntry?.recurringFrequency),
+            recurringFrequency: String(incomeEntry?.recurringFrequency || "").trim().toLowerCase()
+          })
         );
       },
       deleteTransaction: (id) => {
-        setStoredTransactions((current) =>
-          coerceTransactionList(current).filter((transaction) => String(transaction.id) !== String(id))
-        );
+        setStoredTransactions((current) => deleteById(current, id));
         setStoredFavorites((current) =>
           Array.isArray(current) ? current.filter((favoriteId) => String(favoriteId) !== String(id)) : []
+        );
+      },
+      deleteExpense: (id) => {
+        setStoredTransactions((current) => deleteByTypeAndId(current, "expense", id));
+        setStoredFavorites((current) =>
+          Array.isArray(current) ? current.filter((favoriteId) => String(favoriteId) !== String(id)) : []
+        );
+      },
+      deleteIncome: (id) => {
+        setStoredTransactions((current) => deleteByTypeAndId(current, "income", id));
+        setStoredFavorites((current) =>
+          Array.isArray(current) ? current.filter((favoriteId) => String(favoriteId) !== String(id)) : []
+        );
+      },
+      deleteAllExpenses: () => {
+        const removedExpenseIds = transactions
+          .filter((transaction) => transaction.type === "expense")
+          .map((transaction) => String(transaction.id));
+
+        setStoredTransactions((current) => coerceTransactionList(current).filter((transaction) => transaction.type !== "expense"));
+
+        setStoredFavorites((current) =>
+          Array.isArray(current)
+            ? current.filter((favoriteId) => !removedExpenseIds.includes(String(favoriteId)))
+            : []
         );
       },
       toggleFavorite: (id) => {
@@ -110,16 +160,9 @@ export function AppProvider({ children }) {
 
           return [id, ...favoritesList];
         });
-      },
-      setRecentSearches: (updater) => {
-        setStoredRecentSearches((current) => {
-          const currentValue = normalizeSearchHistory(current);
-          const nextValue = typeof updater === "function" ? updater(currentValue) : updater;
-          return normalizeSearchHistory(nextValue);
-        });
       }
     }),
-    [favorites, recentSearches, setStoredFavorites, setStoredRecentSearches, setStoredTransactions, transactions]
+    [favorites, setStoredFavorites, setStoredTransactions, transactions]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

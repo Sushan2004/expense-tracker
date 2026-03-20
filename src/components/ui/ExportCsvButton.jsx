@@ -1,12 +1,13 @@
 import PropTypes from "prop-types";
 import { buildCsv, downloadCsv } from "../../utils/helpers";
 
-export default function ExportCsvButton({ transactions }) {
+export default function ExportCsvButton({ transactions, filename, disabled }) {
   return (
     <button
       type="button"
       className="ghost-btn"
-      onClick={() => downloadCsv("transactions-export.csv", buildCsv(transactions))}
+      disabled={disabled}
+      onClick={() => downloadCsv(filename, buildCsv(transactions))}
     >
       Export CSV
     </button>
@@ -14,5 +15,12 @@ export default function ExportCsvButton({ transactions }) {
 }
 
 ExportCsvButton.propTypes = {
-  transactions: PropTypes.arrayOf(PropTypes.object).isRequired
+  transactions: PropTypes.arrayOf(PropTypes.object).isRequired,
+  filename: PropTypes.string,
+  disabled: PropTypes.bool
+};
+
+ExportCsvButton.defaultProps = {
+  filename: "transactions-export.csv",
+  disabled: false
 };

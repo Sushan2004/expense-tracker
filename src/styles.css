@@ -42,6 +42,10 @@ body {
   min-height: 100vh;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 a {
   color: var(--primary);
   text-decoration: none;
@@ -156,6 +160,12 @@ tr {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
 .danger {
   border-color: var(--danger);
   color: var(--danger);
@@ -182,6 +192,10 @@ tr {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.panel-head p {
+  margin: 0;
 }
 
 .panel h2,
@@ -357,6 +371,63 @@ tr {
   font-size: 0.9rem;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel {
+  width: min(100%, 560px);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+  animation: dropdown-enter 180ms ease;
+}
+
+.modal-head,
+.modal-actions,
+.modal-footer,
+.modal-body,
+.modal-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.modal-head {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+}
+
+.modal-description,
+.modal-copy {
+  margin: 0;
+}
+
+.modal-body {
+  margin-top: 0.9rem;
+}
+
+.modal-form {
+  grid-template-columns: 1fr;
+}
+
+.modal-actions {
+  margin-top: 0.3rem;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .recent-list,
 .insights-list {
   margin: 0;
@@ -404,6 +475,7 @@ tr {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: repeat(3, minmax(180px, 1fr));
+  align-items: start;
 }
 
 label {
@@ -426,17 +498,27 @@ label {
   min-height: 18px;
 }
 
+.form-grid-spacer {
+  min-height: 1px;
+}
+
 input,
 select {
   background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: 10px;
-  min-height: 40px;
+  height: 40px;
   padding: 0.55rem 0.65rem;
+  line-height: 1.2;
 }
 
 .field-error {
   color: var(--danger);
+}
+
+.form-note {
+  margin: 0.75rem 0 0;
+  line-height: 1.4;
 }
 
 .chips-wrap {
@@ -478,6 +560,10 @@ th {
 
 tbody tr:hover {
   background: var(--surface-soft);
+}
+
+tbody tr[tabindex]:hover,
+tbody tr[tabindex]:focus-visible {
   cursor: pointer;
 }
 
@@ -563,7 +649,7 @@ dd {
 
   .side-nav {
     position: static;
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     justify-items: center;
   }
 
@@ -589,6 +675,10 @@ dd {
   }
 
   .side-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-head {
     grid-template-columns: 1fr;
   }
 }

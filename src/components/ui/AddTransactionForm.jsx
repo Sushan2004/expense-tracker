@@ -1,13 +1,15 @@
 import PropTypes from "prop-types";
 import { useState } from "react";
-import { CATEGORY_OPTIONS, INCOME_SOURCE_OPTIONS, validateTransaction } from "../../utils/helpers";
+import {
+  CATEGORY_OPTIONS,
+  RECURRING_FREQUENCY_OPTIONS,
+  validateExpense
+} from "../../utils/helpers";
 
 const initialForm = {
   description: "",
   amount: "",
   category: "Food",
-  type: "expense",
-  incomeSource: "Salary",
   isRecurring: false,
   recurringFrequency: "",
   date: new Date().toISOString().split("T")[0]
@@ -23,20 +25,18 @@ export default function AddTransactionForm({ onAdd }) {
 
     setForm((current) => {
       const next = { ...current, [name]: nextValue };
-      if (name === "type" && value === "income") {
-        next.isRecurring = false;
-        next.recurringFrequency = "";
-      }
+
       if (name === "isRecurring" && !checked) {
         next.recurringFrequency = "";
       }
+
       return next;
     });
   }
 
   function handleSubmit(event) {
     event.preventDefault();
-    const validationErrors = validateTransaction(form);
+    const validationErrors = validateExpense(form);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -47,11 +47,11 @@ export default function AddTransactionForm({ onAdd }) {
       id: crypto.randomUUID(),
       description: form.description.trim(),
       amount: Number(form.amount),
-      category: form.type === "income" ? form.incomeSource : form.category,
-      type: form.type,
-      incomeSource: form.type === "income" ? form.incomeSource : "",
-      isRecurring: form.type === "expense" ? Boolean(form.isRecurring) : false,
-      recurringFrequency: form.type === "expense" && form.isRecurring ? form.recurringFrequency : "",
+      category: form.category,
+      type: "expense",
+      incomeSource: "",
+      isRecurring: Boolean(form.isRecurring),
+      recurringFrequency: form.isRecurring ? form.recurringFrequency : "",
       date: form.date
     });
 
@@ -61,7 +61,7 @@ export default function AddTransactionForm({ onAdd }) {
 
   return (
     <section className="panel">
-      <h2>Add Transaction</h2>
+      <h2>Add Expense</h2>
       <form className="form-grid" onSubmit={handleSubmit} noValidate>
         <label>
           Description
@@ -84,80 +84,67 @@ export default function AddTransactionForm({ onAdd }) {
             onChange={handleChange}
             aria-invalid={Boolean(errors.amount)}
           />
-          <small className="muted">Transactions are stored in USD. Settings only changes displayed values.</small>
           {errors.amount ? <small className="field-error">{errors.amount}</small> : null}
         </label>
         <label>
           Category
-          {form.type === "expense" ? (
-            <select name="category" value={form.category} onChange={handleChange}>
-              {CATEGORY_OPTIONS.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input value="Auto from income source" disabled aria-label="Category auto-generated from income source" />
-          )}
-        </label>
-        <label>
-          Type
-          <select name="type" value={form.type} onChange={handleChange}>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            aria-invalid={Boolean(errors.category)}
+          >
+            {CATEGORY_OPTIONS.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
           </select>
+          {errors.category ? <small className="field-error">{errors.category}</small> : null}
         </label>
-        {form.type === "income" ? (
+        <label className="checkbox-label">
+          <input type="checkbox" name="isRecurring" checked={form.isRecurring} onChange={handleChange} />
+          Recurring expense
+        </label>
+        {form.isRecurring ? (
           <label>
-            Income Source
+            Recurring frequency
             <select
-              name="incomeSource"
-              value={form.incomeSource}
+              name="recurringFrequency"
+              value={form.recurringFrequency}
               onChange={handleChange}
-              aria-invalid={Boolean(errors.incomeSource)}
+              aria-invalid={Boolean(errors.recurringFrequency)}
             >
-              {INCOME_SOURCE_OPTIONS.map((source) => (
-                <option key={source} value={source}>
-                  {source}
+              <option value="">Select frequency</option>
+              {RECURRING_FREQUENCY_OPTIONS.map((frequency) => (
+                <option key={frequency} value={frequency}>
+                  {frequency.charAt(0).toUpperCase() + frequency.slice(1)}
                 </option>
               ))}
             </select>
-            {errors.incomeSource ? <small className="field-error">{errors.incomeSource}</small> : null}
+            {errors.recurringFrequency ? (
+              <small className="field-error">{errors.recurringFrequency}</small>
+            ) : null}
           </label>
         ) : (
-          <>
-            <label className="checkbox-label">
-              <input type="checkbox" name="isRecurring" checked={form.isRecurring} onChange={handleChange} />
-              Recurring Expense
-            </label>
-            {form.isRecurring ? (
-              <label>
-                Recurring Frequency
-                <select
-                  name="recurringFrequency"
-                  value={form.recurringFrequency}
-                  onChange={handleChange}
-                  aria-invalid={Boolean(errors.recurringFrequency)}
-                >
-                  <option value="">Select frequency</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-                {errors.recurringFrequency ? <small className="field-error">{errors.recurringFrequency}</small> : null}
-              </label>
-            ) : null}
-          </>
+          <div className="form-grid-spacer" aria-hidden="true" />
         )}
         <label>
           Date
-          <input name="date" type="date" value={form.date} onChange={handleChange} />
+          <input
+            name="date"
+            type="date"
+            value={form.date}
+            onChange={handleChange}
+            aria-invalid={Boolean(errors.date)}
+          />
+          {errors.date ? <small className="field-error">{errors.date}</small> : null}
         </label>
         <button type="submit" className="primary-btn">
-          Add Transaction
+          Add Expense
         </button>
       </form>
+      <p className="form-note muted">Expenses are stored in USD. Settings only changes displayed values.</p>
     </section>
   );
 }
