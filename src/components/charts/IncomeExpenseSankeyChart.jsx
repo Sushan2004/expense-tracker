@@ -1,6 +1,47 @@
 import PropTypes from "prop-types";
 import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
 
+function formatCurrency(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function renderSankeyNode({ x, y, width, height, payload }) {
+  const isTerminalNode = payload.targetNodes?.length === 0;
+  const labelX = isTerminalNode ? x - 10 : x + width + 10;
+  const labelY = y + height / 2;
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={6}
+        fill="var(--primary)"
+        stroke="var(--text)"
+        strokeOpacity={0.18}
+      />
+      <text
+        x={labelX}
+        y={labelY}
+        dominantBaseline="middle"
+        fontSize={12}
+        fontWeight={600}
+        pointerEvents="none"
+        textAnchor={isTerminalNode ? "end" : "start"}
+        style={{ fill: "var(--text)" }}
+      >
+        {payload.name}
+      </text>
+    </g>
+  );
+}
+
 export default function IncomeExpenseSankeyChart({ data }) {
   return (
     <section className="panel chart-panel">
@@ -9,12 +50,23 @@ export default function IncomeExpenseSankeyChart({ data }) {
         <ResponsiveContainer width="100%" height={280}>
           <Sankey
             data={data}
-            nodePadding={24}
+            nodeWidth={18}
+            nodePadding={20}
             margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-            link={{ stroke: "#60a5fa" }}
-            node={{ stroke: "#94a3b8", fill: "#cbd5e1" }}
+            link={{ stroke: "var(--primary)", strokeOpacity: 0.45 }}
+            node={renderSankeyNode}
           >
-            <Tooltip />
+            <Tooltip
+              formatter={(value) => formatCurrency(value)}
+              contentStyle={{
+                backgroundColor: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                color: "var(--text)"
+              }}
+              itemStyle={{ color: "var(--text)" }}
+              labelStyle={{ color: "var(--muted)" }}
+            />
           </Sankey>
         </ResponsiveContainer>
       </div>
