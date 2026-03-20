@@ -246,10 +246,15 @@ export function CurrencyProvider({ children }) {
 
     didRefreshStoredRateRef.current = true;
 
+    if (currency === "USD" && !updatedAt) {
+      persistPreference("USD", 1);
+      return;
+    }
+
     if (currency !== "USD") {
       void refreshRate();
     }
-  }, [currency, refreshRate]);
+  }, [currency, refreshRate, persistPreference, updatedAt]);
 
   const value = useMemo(
     () => ({

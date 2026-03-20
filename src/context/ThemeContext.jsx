@@ -5,11 +5,11 @@ import useLocalStorage from "../hooks/useLocalStorage";
 const ThemeContext = createContext(null);
 
 function normalizeTheme(value) {
-  return value === "dark" ? "dark" : "light";
+  return value === "light" ? "light" : "dark";
 }
 
 export function ThemeProvider({ children }) {
-  const [storedTheme, setStoredTheme] = useLocalStorage("themePreference", "light");
+  const [storedTheme, setStoredTheme] = useLocalStorage("themePreference", "dark");
   const theme = normalizeTheme(storedTheme);
 
   useEffect(() => {

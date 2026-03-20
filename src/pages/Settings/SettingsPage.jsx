@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import StatusState from "../../components/ui/StatusState";
+import { useEffect, useMemo } from "react";
+import SettingsDropdown from "../../components/ui/SettingsDropdown";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -21,7 +21,6 @@ export default function SettingsPage() {
     setCurrency,
     loadCurrencies
   } = useCurrency();
-  const [currencyQuery, setCurrencyQuery] = useState("");
 
   useEffect(() => {
     void loadCurrencies();
@@ -35,56 +34,65 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const filteredCurrencies = useMemo(() => {
-    const query = currencyQuery.trim().toLowerCase();
+  const themeOptions = useMemo(
+    () => [
+      {
+        value: "dark",
+        label: "Dark",
+        description: "Default theme with low-light contrast."
+      },
+      {
+        value: "light",
+        label: "Light",
+        description: "Bright surfaces with dark text."
+      }
+    ],
+    []
+  );
+  const currencyOptions = useMemo(
+    () =>
+      availableCurrencies.map((code) => ({
+        value: code,
+        label: getCurrencyLabel(currencyDisplayNames, code),
+        meta: code
+      })),
+    [availableCurrencies, currencyDisplayNames]
+  );
 
-    if (!query) {
-      return availableCurrencies;
-    }
-
-    return availableCurrencies.filter((code) => {
-      const label = getCurrencyLabel(currencyDisplayNames, code).toLowerCase();
-      return code.toLowerCase().includes(query) || label.includes(query);
-    });
-  }, [availableCurrencies, currencyDisplayNames, currencyQuery]);
-
-  const rateSummary = useMemo(() => {
-    if (currency === "USD") {
-      return "USD is the base currency. No conversion is applied.";
-    }
-
-    if (!updatedAt) {
-      return "Latest exchange rate will appear after a successful refresh.";
-    }
-
-    return `1 USD = ${rate.toFixed(4)} ${currency}`;
-  }, [currency, rate, updatedAt]);
+  const selectedCurrencyLabel = useMemo(
+    () => getCurrencyLabel(currencyDisplayNames, currency),
+    [currency, currencyDisplayNames]
+  );
+  const lastUpdatedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleString("en-US")
+    : "Waiting for initial rate sync";
 
   return (
     <div className="page-content settings-grid">
       <section className="panel">
         <h2>Theme</h2>
         <p className="muted">Choose how the app looks across every page.</p>
-        <div className="settings-option-grid" role="radiogroup" aria-label="Theme selection">
-          <button
-            type="button"
-            className={`settings-option ${theme === "light" ? "active" : ""}`}
-            aria-pressed={theme === "light"}
-            onClick={() => setTheme("light")}
-          >
-            <strong>Light Mode</strong>
-            <span>Bright surfaces with dark text.</span>
-          </button>
-          <button
-            type="button"
-            className={`settings-option ${theme === "dark" ? "active" : ""}`}
-            aria-pressed={theme === "dark"}
-            onClick={() => setTheme("dark")}
-          >
-            <strong>Dark Mode</strong>
-            <span>Low-light theme applied globally.</span>
-          </button>
-        </div>
+        <SettingsDropdown
+          value={theme}
+          options={themeOptions}
+          onSelect={async (nextTheme) => {
+            setTheme(nextTheme);
+          }}
+          listAriaLabel="Theme options"
+          renderTrigger={(selectedOption) => (
+            <>
+              <span>{selectedOption?.label || "Theme"}</span>
+              <span className="settings-dropdown-trigger-meta">Theme</span>
+            </>
+          )}
+          renderOption={(option) => (
+            <>
+              <span className="settings-dropdown-option-label">{option.label}</span>
+              <span className="settings-dropdown-option-description">{option.description}</span>
+            </>
+          )}
+        />
+        <small className="muted">Changes apply immediately and stay saved until you switch again.</small>
       </section>
 
       <section className="panel">
@@ -92,57 +100,42 @@ export default function SettingsPage() {
         <p className="muted">Search and choose the fiat currency used for displayed values.</p>
 
         <div className="currency-picker">
-          <label>
-            Search currency
-            <input
-              type="search"
-              value={currencyQuery}
-              onChange={(event) => setCurrencyQuery(event.target.value)}
-              placeholder="Search by code or name..."
-            />
-          </label>
+          <SettingsDropdown
+            value={currency}
+            options={currencyOptions}
+            onSelect={setCurrency}
+            listAriaLabel="Available currencies"
+            searchable
+            searchLabel="Search currency"
+            searchPlaceholder="Search by code or name..."
+            getSearchText={(option) => `${option.meta} ${option.label}`}
+            disabled={isLoadingCurrencies}
+            isLoading={isLoadingCurrencies}
+            loadingMessage="Loading currencies..."
+            emptyMessage="No currencies match your search."
+            renderTrigger={(selectedOption) => (
+              <>
+                <span>{selectedOption?.label || selectedCurrencyLabel}</span>
+                <span className="settings-dropdown-trigger-meta">{selectedOption?.meta || currency}</span>
+              </>
+            )}
+            renderOption={(option) => (
+              <>
+                <span className="settings-dropdown-option-label">{option.meta}</span>
+                <span className="settings-dropdown-option-description">{option.label}</span>
+              </>
+            )}
+          />
 
           <div className="currency-status" aria-live="polite">
-            <strong>Current currency:</strong> {getCurrencyLabel(currencyDisplayNames, currency)}
+            <strong>Current currency:</strong> {selectedCurrencyLabel}
             <br />
-            <span>{isLoadingRate ? "Refreshing exchange rate..." : rateSummary}</span>
-            {updatedAt ? (
-              <>
-                <br />
-                <span>Last updated: {new Date(updatedAt).toLocaleString("en-US")}</span>
-              </>
-            ) : null}
+            <span>{isLoadingRate ? "Refreshing exchange rate..." : `1 USD = ${rate.toFixed(4)} ${currency}`}</span>
+            <br />
+            <span>Last updated: {lastUpdatedLabel}</span>
           </div>
 
           {currencyError ? <p className="field-error">{currencyError}</p> : null}
-
-          {isLoadingCurrencies ? (
-            <StatusState type="loading" title="Loading currencies" description="Fetching available currencies for Settings." />
-          ) : filteredCurrencies.length === 0 ? (
-            <StatusState
-              type="empty"
-              title="No currencies found"
-              description={currencyQuery ? "Try a different currency search." : "No supported fiat currencies are available right now."}
-            />
-          ) : (
-            <div className="currency-list" role="listbox" aria-label="Available currencies">
-              {filteredCurrencies.map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  className={`currency-option ${currency === code ? "active" : ""}`}
-                  aria-selected={currency === code}
-                  disabled={isLoadingRate}
-                  onClick={() => {
-                    void setCurrency(code);
-                  }}
-                >
-                  <span className="currency-code">{code}</span>
-                  <span className="currency-name">{getCurrencyLabel(currencyDisplayNames, code)}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </section>
     </div>
