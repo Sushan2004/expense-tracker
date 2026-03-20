@@ -1,13 +1,7 @@
 import PropTypes from "prop-types";
 import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0
-  }).format(value);
-}
+import { useCurrency } from "../../context/CurrencyContext";
+import { formatCurrency } from "../../utils/helpers";
 
 function renderSankeyNode({ x, y, width, height, payload }) {
   const isTerminalNode = payload.targetNodes?.length === 0;
@@ -43,6 +37,8 @@ function renderSankeyNode({ x, y, width, height, payload }) {
 }
 
 export default function IncomeExpenseSankeyChart({ data }) {
+  const { currency } = useCurrency();
+
   return (
     <section className="panel chart-panel">
       <h2>Income Flow to Expenses</h2>
@@ -57,7 +53,7 @@ export default function IncomeExpenseSankeyChart({ data }) {
             node={renderSankeyNode}
           >
             <Tooltip
-              formatter={(value) => formatCurrency(value)}
+              formatter={(value) => formatCurrency(Number(value), currency, { maximumFractionDigits: 0 })}
               contentStyle={{
                 backgroundColor: "var(--surface)",
                 border: "1px solid var(--border)",

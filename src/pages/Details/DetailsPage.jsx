@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext";
-import { CATEGORY_ICONS, formatCurrency, formatDate } from "../../utils/helpers";
+import { useCurrency } from "../../context/CurrencyContext";
+import { CATEGORY_ICONS, formatDate } from "../../utils/helpers";
 
 export default function DetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { transactions, favorites, deleteTransaction, toggleFavorite } = useAppContext();
+  const { formatCurrency } = useCurrency();
 
   const transaction = useMemo(
     () => transactions.find((item) => String(item.id) === String(id)),

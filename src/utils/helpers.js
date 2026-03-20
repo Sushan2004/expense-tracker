@@ -28,12 +28,19 @@ export const CATEGORY_ICONS = {
   Other: "🧩"
 };
 
-export function formatCurrency(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2
-  }).format(value);
+export function formatCurrency(value, currency = "USD", options = {}) {
+  const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+      ...options
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
 }
 
 export function formatDate(dateString) {

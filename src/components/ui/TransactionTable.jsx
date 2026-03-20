@@ -1,9 +1,11 @@
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
-import { CATEGORY_ICONS, formatCurrency, formatDate } from "../../utils/helpers";
+import { useCurrency } from "../../context/CurrencyContext";
+import { CATEGORY_ICONS, formatDate } from "../../utils/helpers";
 
 export default function TransactionTable({ transactions, favorites, onToggleFavorite, onDelete }) {
   const navigate = useNavigate();
+  const { formatCurrency } = useCurrency();
 
   if (transactions.length === 0) {
     return (

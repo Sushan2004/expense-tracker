@@ -1,8 +1,11 @@
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import { CATEGORY_ICONS, formatCurrency, formatDate } from "../../utils/helpers";
+import { useCurrency } from "../../context/CurrencyContext";
+import { CATEGORY_ICONS, formatDate } from "../../utils/helpers";
 
 export default function RecentTransactions({ transactions, favorites, onToggleFavorite }) {
+  const { formatCurrency } = useCurrency();
+
   return (
     <section className="panel">
       <div className="panel-head">

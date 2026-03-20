@@ -1,7 +1,8 @@
 import PropTypes from "prop-types";
-import { formatCurrency } from "../../utils/helpers";
+import { useCurrency } from "../../context/CurrencyContext";
 
 export default function BudgetProgress({ expenses, budget }) {
+  const { formatCurrency } = useCurrency();
   const progress = budget > 0 ? Math.min(100, (expenses / budget) * 100) : 0;
   const remaining = budget - expenses;
 

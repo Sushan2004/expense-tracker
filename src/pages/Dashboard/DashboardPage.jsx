@@ -4,13 +4,13 @@ import IncomeExpenseBarChart from "../../components/charts/IncomeExpenseBarChart
 import IncomeExpenseSankeyChart from "../../components/charts/IncomeExpenseSankeyChart";
 import SpendingTrendLineChart from "../../components/charts/SpendingTrendLineChart";
 import { useAppContext } from "../../context/AppContext";
+import { useCurrency } from "../../context/CurrencyContext";
 import BudgetProgress from "../../components/ui/BudgetProgress";
 import RecentTransactions from "../../components/ui/RecentTransactions";
 import SpendingInsights from "../../components/ui/SpendingInsights";
 import StatusState from "../../components/ui/StatusState";
 import SummaryCard from "../../components/ui/SummaryCard";
 import {
-  formatCurrency,
   getExpenseCategoryData,
   getMonthlyIncomeExpenseData,
   getSankeyData,
@@ -21,6 +21,7 @@ import {
 
 export default function DashboardPage() {
   const { transactions, favorites, isEmpty, toggleFavorite } = useAppContext();
+  const { convertAmount, formatCurrency } = useCurrency();
 
   const summary = useMemo(() => getSummaryMetrics(transactions), [transactions]);
   const categoryData = useMemo(() => getExpenseCategoryData(transactions), [transactions]);
@@ -28,6 +29,30 @@ export default function DashboardPage() {
   const trendData = useMemo(() => getSpendingTrendData(transactions), [transactions]);
   const sankeyData = useMemo(() => getSankeyData(transactions), [transactions]);
   const insights = useMemo(() => getSpendingInsights(transactions), [transactions]);
+  const convertedCategoryData = useMemo(
+    () => categoryData.map((item) => ({ ...item, value: convertAmount(item.value) })),
+    [categoryData, convertAmount]
+  );
+  const convertedMonthlyData = useMemo(
+    () =>
+      monthlyData.map((item) => ({
+        ...item,
+        income: convertAmount(item.income),
+        expenses: convertAmount(item.expenses)
+      })),
+    [monthlyData, convertAmount]
+  );
+  const convertedTrendData = useMemo(
+    () => trendData.map((item) => ({ ...item, amount: convertAmount(item.amount) })),
+    [trendData, convertAmount]
+  );
+  const convertedSankeyData = useMemo(
+    () => ({
+      nodes: sankeyData.nodes,
+      links: sankeyData.links.map((item) => ({ ...item, value: convertAmount(item.value) }))
+    }),
+    [sankeyData, convertAmount]
+  );
   const recentTransactions = transactions.slice(0, 5);
 
   if (isEmpty) {
@@ -50,10 +75,10 @@ export default function DashboardPage() {
       </section>
 
       <section className="charts-grid">
-        <ExpenseDonutChart data={categoryData} />
-        <IncomeExpenseBarChart data={monthlyData} />
-        <SpendingTrendLineChart data={trendData} />
-        <IncomeExpenseSankeyChart data={sankeyData} />
+        <ExpenseDonutChart data={convertedCategoryData} />
+        <IncomeExpenseBarChart data={convertedMonthlyData} />
+        <SpendingTrendLineChart data={convertedTrendData} />
+        <IncomeExpenseSankeyChart data={convertedSankeyData} />
       </section>
 
       <section className="widgets-grid">

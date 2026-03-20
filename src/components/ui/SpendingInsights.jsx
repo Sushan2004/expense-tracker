@@ -1,7 +1,9 @@
 import PropTypes from "prop-types";
-import { formatCurrency } from "../../utils/helpers";
+import { useCurrency } from "../../context/CurrencyContext";
 
 export default function SpendingInsights({ insights }) {
+  const { formatCurrency } = useCurrency();
+
   return (
     <section className="panel">
       <h2>Spending Insights</h2>

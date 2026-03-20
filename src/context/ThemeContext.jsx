@@ -4,8 +4,13 @@ import useLocalStorage from "../hooks/useLocalStorage";
 
 const ThemeContext = createContext(null);
 
+function normalizeTheme(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useLocalStorage("themePreference", "light");
+  const [storedTheme, setStoredTheme] = useLocalStorage("themePreference", "light");
+  const theme = normalizeTheme(storedTheme);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -14,11 +19,14 @@ export function ThemeProvider({ children }) {
   const value = useMemo(
     () => ({
       theme,
+      setTheme: (nextTheme) => {
+        setStoredTheme(normalizeTheme(nextTheme));
+      },
       toggleTheme: () => {
-        setTheme((current) => (current === "light" ? "dark" : "light"));
+        setStoredTheme((current) => (normalizeTheme(current) === "light" ? "dark" : "light"));
       }
     }),
-    [theme, setTheme]
+    [theme, setStoredTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

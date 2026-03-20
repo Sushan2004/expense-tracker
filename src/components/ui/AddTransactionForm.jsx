@@ -74,7 +74,7 @@ export default function AddTransactionForm({ onAdd }) {
           {errors.description ? <small className="field-error">{errors.description}</small> : null}
         </label>
         <label>
-          Amount
+          Amount (USD)
           <input
             name="amount"
             type="number"
@@ -84,6 +84,7 @@ export default function AddTransactionForm({ onAdd }) {
             onChange={handleChange}
             aria-invalid={Boolean(errors.amount)}
           />
+          <small className="muted">Transactions are stored in USD. Settings only changes displayed values.</small>
           {errors.amount ? <small className="field-error">{errors.amount}</small> : null}
         </label>
         <label>
