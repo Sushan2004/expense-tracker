@@ -1,16 +1,28 @@
 import PropTypes from "prop-types";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrency } from "../../context/CurrencyContext";
+import ConfirmDialog from "./ConfirmDialog";
 import { CATEGORY_ICONS, formatDate, formatRecurringFrequency } from "../../utils/helpers";
 
-export default function TransactionTable({ expenses, favorites, onToggleFavorite, onDelete }) {
+export default function TransactionTable({
+  expenses,
+  favorites,
+  onToggleFavorite,
+  onDelete,
+  headerActions
+}) {
   const navigate = useNavigate();
   const { formatCurrency } = useCurrency();
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   if (expenses.length === 0) {
     return (
       <section className="panel">
-        <h2>Expense History</h2>
+        <div className="panel-head">
+          <h2>Expenses</h2>
+          {headerActions ? <div className="row-actions">{headerActions}</div> : null}
+        </div>
         <p className="muted">No expenses match your current filters.</p>
       </section>
     );
@@ -18,7 +30,10 @@ export default function TransactionTable({ expenses, favorites, onToggleFavorite
 
   return (
     <section className="panel table-wrap">
-      <h2>Expenses</h2>
+      <div className="panel-head">
+        <h2>Expenses</h2>
+        {headerActions ? <div className="row-actions">{headerActions}</div> : null}
+      </div>
       <table>
         <caption className="sr-only">Expense history list</caption>
         <thead>
@@ -57,8 +72,8 @@ export default function TransactionTable({ expenses, favorites, onToggleFavorite
                 <td>{item.category}</td>
                 <td>{formatDate(item.date)}</td>
                 <td className="expense">{formatCurrency(item.amount)}</td>
-                <td>
-                  <div className="row-actions">
+                <td className="table-actions-cell">
+                  <div className="row-actions table-actions-row">
                     <button
                       type="button"
                       className="ghost-btn"
@@ -75,7 +90,7 @@ export default function TransactionTable({ expenses, favorites, onToggleFavorite
                       className="ghost-btn danger"
                       onClick={(event) => {
                         event.stopPropagation();
-                        onDelete(item.id);
+                        setPendingDeleteId(item.id);
                       }}
                     >
                       Delete
@@ -87,6 +102,17 @@ export default function TransactionTable({ expenses, favorites, onToggleFavorite
           })}
         </tbody>
       </table>
+      <ConfirmDialog
+        isOpen={pendingDeleteId !== null}
+        title="Delete Expense"
+        message="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          onDelete(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+      />
     </section>
   );
 }
@@ -95,5 +121,10 @@ TransactionTable.propTypes = {
   expenses: PropTypes.arrayOf(PropTypes.object).isRequired,
   favorites: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.number, PropTypes.string])).isRequired,
   onToggleFavorite: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired
+  onDelete: PropTypes.func.isRequired,
+  headerActions: PropTypes.node
+};
+
+TransactionTable.defaultProps = {
+  headerActions: null
 };

@@ -460,6 +460,15 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.table-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.table-actions-row {
+  justify-content: flex-end;
+}
+
 .income {
   color: var(--success);
   font-weight: 700;

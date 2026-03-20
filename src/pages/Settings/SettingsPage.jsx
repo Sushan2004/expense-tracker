@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from "react";
+import ExportCsvButton from "../../components/ui/ExportCsvButton";
+import { useAppContext } from "../../context/AppContext";
 import SettingsDropdown from "../../components/ui/SettingsDropdown";
 import { useCurrency } from "../../context/CurrencyContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -9,6 +11,7 @@ function getCurrencyLabel(displayNames, code) {
 }
 
 export default function SettingsPage() {
+  const { transactions } = useAppContext();
   const { theme, setTheme } = useTheme();
   const {
     currency,
@@ -62,6 +65,10 @@ export default function SettingsPage() {
   const selectedCurrencyLabel = useMemo(
     () => getCurrencyLabel(currencyDisplayNames, currency),
     [currency, currencyDisplayNames]
+  );
+  const expenses = useMemo(
+    () => transactions.filter((item) => item.type === "expense"),
+    [transactions]
   );
   const lastUpdatedLabel = updatedAt
     ? new Date(updatedAt).toLocaleString("en-US")
@@ -137,6 +144,17 @@ export default function SettingsPage() {
 
           {currencyError ? <p className="field-error">{currencyError}</p> : null}
         </div>
+      </section>
+
+      <section className="panel">
+        <h2>Export Data</h2>
+        <p className="muted">Download all expense records as a CSV file for backup or analysis.</p>
+        <ExportCsvButton
+          transactions={expenses}
+          filename="expenses-export.csv"
+          disabled={expenses.length === 0}
+          label="Export Expenses as CSV"
+        />
       </section>
     </div>
   );

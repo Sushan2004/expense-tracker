@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useAppContext } from "../../context/AppContext";
 import { useCurrency } from "../../context/CurrencyContext";
 import { CATEGORY_ICONS, formatDate, formatRecurringFrequency } from "../../utils/helpers";
@@ -7,6 +8,7 @@ import { CATEGORY_ICONS, formatDate, formatRecurringFrequency } from "../../util
 export default function DetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const { transactions, favorites, deleteExpense, toggleFavorite } = useAppContext();
   const { formatCurrency } = useCurrency();
 
@@ -45,10 +47,7 @@ export default function DetailsPage() {
           <button
             type="button"
             className="ghost-btn danger"
-            onClick={() => {
-              deleteExpense(transaction.id);
-              navigate("/expenses");
-            }}
+            onClick={() => setIsDeleteOpen(true)}
           >
             Delete
           </button>
@@ -77,6 +76,17 @@ export default function DetailsPage() {
           <dd>{transaction.id}</dd>
         </div>
       </dl>
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        title="Delete Expense"
+        message="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setIsDeleteOpen(false)}
+        onConfirm={() => {
+          deleteExpense(transaction.id);
+          navigate("/expenses");
+        }}
+      />
     </section>
   );
 }

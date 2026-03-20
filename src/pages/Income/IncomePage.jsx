@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import AddIncomeSourceModal from "../../components/ui/AddIncomeSourceModal";
+import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import StatusState from "../../components/ui/StatusState";
 import { useAppContext } from "../../context/AppContext";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -7,6 +8,7 @@ import { formatDate, formatRecurringFrequency } from "../../utils/helpers";
 
 export default function IncomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const { transactions, addIncomeEntry, deleteIncome } = useAppContext();
   const { formatCurrency } = useCurrency();
 
@@ -58,12 +60,12 @@ export default function IncomePage() {
                   <td className="income">{formatCurrency(entry.amount)}</td>
                   <td>{formatDate(entry.date)}</td>
                   <td>{entry.isRecurring ? formatRecurringFrequency(entry.recurringFrequency) : "One-time"}</td>
-                  <td>
-                    <div className="row-actions">
+                  <td className="table-actions-cell">
+                    <div className="row-actions table-actions-row">
                       <button
                         type="button"
                         className="ghost-btn danger"
-                        onClick={() => deleteIncome(entry.id)}
+                        onClick={() => setPendingDeleteId(entry.id)}
                       >
                         Delete
                       </button>
@@ -80,6 +82,17 @@ export default function IncomePage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={addIncomeEntry}
+      />
+      <ConfirmDialog
+        isOpen={pendingDeleteId !== null}
+        title="Delete Income Source"
+        message="Are you sure you want to delete this income source? This action cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          deleteIncome(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
       />
     </div>
   );

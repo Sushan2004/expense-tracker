@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import AddTransactionForm from "../../components/ui/AddTransactionForm";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
-import ExportCsvButton from "../../components/ui/ExportCsvButton";
 import StatusState from "../../components/ui/StatusState";
 import TransactionFilters from "../../components/ui/TransactionFilters";
 import TransactionTable from "../../components/ui/TransactionTable";
@@ -41,30 +40,6 @@ export default function ExpensesPage() {
 
   return (
     <div className="page-content">
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Expense History</h2>
-            <p className="muted">Track, search, and manage expense records separately from your income sources.</p>
-          </div>
-          <div className="row-actions">
-            <ExportCsvButton
-              transactions={filteredExpenses}
-              filename="expenses-export.csv"
-              disabled={filteredExpenses.length === 0}
-            />
-            <button
-              type="button"
-              className="ghost-btn danger"
-              onClick={() => setIsDeleteAllOpen(true)}
-              disabled={expenses.length === 0}
-            >
-              Delete All
-            </button>
-          </div>
-        </div>
-      </section>
-
       <AddTransactionForm onAdd={addExpense} />
       <TransactionFilters
         filters={filters}
@@ -84,6 +59,16 @@ export default function ExpensesPage() {
           favorites={favorites}
           onToggleFavorite={toggleFavorite}
           onDelete={deleteExpense}
+          headerActions={(
+            <button
+              type="button"
+              className="ghost-btn danger"
+              onClick={() => setIsDeleteAllOpen(true)}
+              disabled={expenses.length === 0}
+            >
+              Delete All
+            </button>
+          )}
         />
       )}
 
