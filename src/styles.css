@@ -11,6 +11,8 @@
   --danger: #dc2626;
   --success: #16a34a;
   --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --flow-shell: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --flow-shell-inner: radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 42%), #ffffff;
 }
 
 [data-theme="dark"] {
@@ -26,6 +28,8 @@
   --danger: #f87171;
   --success: #4ade80;
   --shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+  --flow-shell: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  --flow-shell-inner: radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 42%), #08111f;
 }
 
 *,
@@ -252,6 +256,24 @@ button:disabled {
 .chart-panel .chart-wrap {
   width: 100%;
   min-height: 280px;
+}
+
+.money-flow-page {
+  gap: 0;
+}
+
+.money-flow-panel {
+  padding: 1.15rem;
+  background: var(--flow-shell);
+  border-color: var(--border);
+}
+
+.money-flow-chart-wrap {
+  min-height: 520px;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--flow-shell-inner);
 }
 
 .widgets-grid {
