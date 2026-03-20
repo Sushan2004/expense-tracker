@@ -36,12 +36,12 @@ function renderSankeyNode({ x, y, width, height, payload }) {
   );
 }
 
-export default function IncomeExpenseSankeyChart({ data }) {
+export default function IncomeExpenseSankeyChart({ data, title }) {
   const { currency } = useCurrency();
 
   return (
     <section className="panel chart-panel">
-      <h2>Income Flow to Expenses</h2>
+      <h2>{title}</h2>
       <div className="chart-wrap">
         <ResponsiveContainer width="100%" height={280}>
           <Sankey
@@ -71,6 +71,7 @@ export default function IncomeExpenseSankeyChart({ data }) {
 }
 
 IncomeExpenseSankeyChart.propTypes = {
+  title: PropTypes.string,
   data: PropTypes.shape({
     nodes: PropTypes.arrayOf(PropTypes.shape({ name: PropTypes.string.isRequired })).isRequired,
     links: PropTypes.arrayOf(
@@ -81,4 +82,8 @@ IncomeExpenseSankeyChart.propTypes = {
       })
     ).isRequired
   }).isRequired
+};
+
+IncomeExpenseSankeyChart.defaultProps = {
+  title: "Income Flow to Expenses"
 };

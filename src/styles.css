@@ -214,6 +214,10 @@ button:disabled {
   grid-template-columns: repeat(4, minmax(160px, 1fr));
 }
 
+.money-flow-summary {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
 .summary-card p {
   margin: 0;
   color: var(--muted);
@@ -239,6 +243,10 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
   gap: 1rem;
+}
+
+.dashboard-charts > :last-child {
+  grid-column: 1 / -1;
 }
 
 .chart-panel .chart-wrap {

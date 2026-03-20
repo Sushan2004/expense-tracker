@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import ExpenseDonutChart from "../../components/charts/ExpenseDonutChart";
 import IncomeExpenseBarChart from "../../components/charts/IncomeExpenseBarChart";
-import IncomeExpenseSankeyChart from "../../components/charts/IncomeExpenseSankeyChart";
 import SpendingTrendLineChart from "../../components/charts/SpendingTrendLineChart";
 import { useAppContext } from "../../context/AppContext";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -13,7 +12,6 @@ import SummaryCard from "../../components/ui/SummaryCard";
 import {
   getExpenseCategoryData,
   getMonthlyIncomeExpenseData,
-  getSankeyData,
   getSpendingInsights,
   getSpendingTrendData,
   getSummaryMetrics
@@ -27,7 +25,6 @@ export default function DashboardPage() {
   const categoryData = useMemo(() => getExpenseCategoryData(transactions), [transactions]);
   const monthlyData = useMemo(() => getMonthlyIncomeExpenseData(transactions), [transactions]);
   const trendData = useMemo(() => getSpendingTrendData(transactions), [transactions]);
-  const sankeyData = useMemo(() => getSankeyData(transactions), [transactions]);
   const insights = useMemo(() => getSpendingInsights(transactions), [transactions]);
   const convertedCategoryData = useMemo(
     () => categoryData.map((item) => ({ ...item, value: convertAmount(item.value) })),
@@ -45,13 +42,6 @@ export default function DashboardPage() {
   const convertedTrendData = useMemo(
     () => trendData.map((item) => ({ ...item, amount: convertAmount(item.amount) })),
     [trendData, convertAmount]
-  );
-  const convertedSankeyData = useMemo(
-    () => ({
-      nodes: sankeyData.nodes,
-      links: sankeyData.links.map((item) => ({ ...item, value: convertAmount(item.value) }))
-    }),
-    [sankeyData, convertAmount]
   );
   const recentExpenses = useMemo(
     () => transactions.filter((item) => item.type === "expense").slice(0, 5),
@@ -77,11 +67,10 @@ export default function DashboardPage() {
         <SummaryCard label="Savings" value={`${summary.savingsRate}%`} hint="Balance / Income" />
       </section>
 
-      <section className="charts-grid">
+      <section className="charts-grid dashboard-charts">
         <ExpenseDonutChart data={convertedCategoryData} />
         <IncomeExpenseBarChart data={convertedMonthlyData} />
         <SpendingTrendLineChart data={convertedTrendData} />
-        <IncomeExpenseSankeyChart data={convertedSankeyData} />
       </section>
 
       <section className="widgets-grid">
