@@ -98,7 +98,7 @@ export default function AddTransactionForm({ onAdd }) {
   return (
     <section className="panel">
       <h2>Add Expense</h2>
-      <form className="form-grid" onSubmit={handleSubmit} noValidate>
+      <form className="form-grid expense-form-grid" onSubmit={handleSubmit} noValidate>
         <label>
           Description
           <input
@@ -136,7 +136,7 @@ export default function AddTransactionForm({ onAdd }) {
               </option>
             ))}
           </select>
-          <div className="category-field-slot">
+          <div className={`category-field-slot ${showCustomCategoryInput ? "open" : ""}`}>
             {showCustomCategoryInput ? (
               <>
                 <input
@@ -154,9 +154,23 @@ export default function AddTransactionForm({ onAdd }) {
           </div>
           {errors.category ? <small className="field-error">{errors.category}</small> : null}
         </label>
-        <label className="checkbox-label">
-          <input type="checkbox" name="isRecurring" checked={form.isRecurring} onChange={handleChange} />
-          Recurring expense
+        <div className="checkbox-field">
+          <span className="field-label">Recurring Expense</span>
+          <label className="checkbox-label compact">
+            <input type="checkbox" name="isRecurring" checked={form.isRecurring} onChange={handleChange} />
+            Enable recurring expense
+          </label>
+        </div>
+        <label>
+          Date
+          <input
+            name="date"
+            type="date"
+            value={form.date}
+            onChange={handleChange}
+            aria-invalid={Boolean(errors.date)}
+          />
+          {errors.date ? <small className="field-error">{errors.date}</small> : null}
         </label>
         {form.isRecurring ? (
           <label>
@@ -181,17 +195,6 @@ export default function AddTransactionForm({ onAdd }) {
         ) : (
           <div className="form-grid-spacer" aria-hidden="true" />
         )}
-        <label>
-          Date
-          <input
-            name="date"
-            type="date"
-            value={form.date}
-            onChange={handleChange}
-            aria-invalid={Boolean(errors.date)}
-          />
-          {errors.date ? <small className="field-error">{errors.date}</small> : null}
-        </label>
         <button type="submit" className="primary-btn">
           Add Expense
         </button>

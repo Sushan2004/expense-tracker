@@ -487,6 +487,10 @@ button:disabled {
   align-items: start;
 }
 
+.expense-form-grid {
+  gap: 0.7rem 0.75rem;
+}
+
 label {
   display: grid;
   gap: 0.35rem;
@@ -498,24 +502,48 @@ label {
 }
 
 .category-field-slot {
-  min-height: 52px;
+  min-height: 0;
   display: grid;
   gap: 0.35rem;
   align-content: start;
+}
+
+.category-field-slot.open {
+  margin-top: 0.35rem;
+}
+
+.checkbox-field {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.field-label {
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.55rem;
   font-weight: 600;
+}
+
+.checkbox-label.compact {
+  min-height: 40px;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
 }
 
 .checkbox-label input {
   width: 18px;
   height: 18px;
   min-height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .form-grid-spacer {
