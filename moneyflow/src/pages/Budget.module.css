@@ -1,0 +1,48 @@
+.page  { max-width: 1200px; margin: 0 auto; padding: 40px 24px 48px; }
+.title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.sub   { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; }
+
+.grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+.card  { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px; }
+
+.cardTop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; }
+.tag     { padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+
+.overBadge { font-size: 11px; font-weight: 600; color: var(--accent-red); background: var(--accent-red-dim); padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+
+.amounts { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--text-primary); margin-bottom: 8px; font-weight: 500; }
+.limit   { color: var(--text-secondary); font-weight: 400; }
+
+.barTrack { height: 6px; background: var(--track-bg); border-radius: 3px; margin-bottom: 16px; overflow: hidden; }
+.barFill  { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+.noLimit { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+.editPanel { display: flex; flex-direction: column; gap: 10px; }
+.buttonRow { display: flex; gap: 8px; flex-wrap: wrap; }
+.input {
+  width: 100%; padding: 8px 12px; background: var(--bg-secondary);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: 13px;
+}
+.input:focus { outline: none; border-color: var(--accent-green); }
+
+.editBtn, .saveBtn, .secondaryBtn, .clearBtn {
+  padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+.editBtn, .secondaryBtn {
+  background: transparent; color: var(--text-primary); border: 1px solid var(--border-strong);
+}
+
+.saveBtn {
+  background: var(--accent-green); color: var(--text-on-accent); border: none;
+}
+
+.clearBtn {
+  background: transparent; color: var(--accent-red); border: 1px solid var(--accent-red-dim);
+}
+
+.editBtn:hover, .secondaryBtn:hover { background: var(--control-hover); }
+.saveBtn:hover, .clearBtn:hover { opacity: 0.88; }
