@@ -1,0 +1,112 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+}
+
+.header { margin-bottom: 24px; }
+.title { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.sub { font-size: 14px; color: var(--text-secondary); }
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.summaryCard, .card, .historyList {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.summaryCard { padding: 22px; }
+.card { padding: 24px; margin-bottom: 28px; }
+
+.cardLabel, .sectionTitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.cardValue {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.cardSub { color: var(--text-secondary); font-size: 14px; }
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.input {
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.input:focus { outline: none; border-color: var(--accent-green); }
+
+.saveBtn {
+  padding: 11px 16px;
+  background: var(--accent-green);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.saveBtn:hover { opacity: 0.88; }
+
+.error { color: var(--accent-red); font-size: 13px; margin-top: 10px; }
+
+.historySection { margin-top: 4px; }
+.empty { color: var(--text-secondary); font-size: 14px; }
+.historyList { overflow: hidden; }
+
+.historyRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.historyRow:last-child { border-bottom: none; }
+.historyRow:hover { background: var(--bg-card-hover); }
+
+.source { color: var(--text-primary); font-weight: 700; font-size: 15px; }
+.note { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+.rowRight { text-align: right; }
+.amount { color: var(--accent-green); font-size: 15px; font-weight: 800; }
+.date { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.deleteBtn {
+  background: transparent;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px;
+}
+
+@media (max-width: 720px) {
+  .summaryGrid, .form { grid-template-columns: 1fr; }
+  .historyRow { grid-template-columns: 1fr auto; }
+  .deleteBtn { grid-column: 2; }
+}

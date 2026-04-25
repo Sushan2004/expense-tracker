@@ -1,0 +1,26 @@
+.page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; }
+.title { font-size: 24px; font-weight: 700; margin-bottom: 24px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-soft); padding: 22px; margin-bottom: 18px; }
+.sectionTitle { font-size: 13px; font-weight: 800; color: var(--text-secondary); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+.about { font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; }
+.buttonRow, .form, .goalControls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.form { margin-bottom: 16px; }
+.input { flex: 1; min-width: 150px; padding: 9px 12px; background: var(--bg-secondary); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px; }
+.input:focus { outline: none; border-color: var(--accent-green); }
+.btn, .btnPrimary, .dangerBtn { padding: 9px 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; }
+.btn { background: transparent; color: var(--text-primary); border: 1px solid var(--border-strong); }
+.btn:hover { background: var(--control-hover); }
+.btnPrimary { background: var(--accent-green); color: var(--text-on-accent); border: none; }
+.dangerBtn { background: transparent; color: var(--accent-red); border: 1px solid var(--accent-red-dim); }
+.dangerBtn:hover { background: var(--accent-red-dim); }
+.list, .goalList { display: flex; flex-direction: column; gap: 10px; }
+.row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; }
+.row span:first-child { color: var(--text-primary); font-weight: 700; }
+.textBtn { background: transparent; border: none; color: var(--accent-red); cursor: pointer; font-weight: 700; }
+.goalCard { padding: 14px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.goalHead { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.goalHead span { color: var(--accent-green); font-weight: 800; }
+.goalTrack { height: 8px; background: var(--track-bg); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.goalTrack div { height: 100%; background: var(--accent-green); border-radius: 999px; }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }

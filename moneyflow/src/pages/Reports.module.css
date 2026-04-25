@@ -1,0 +1,136 @@
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+}
+
+.hero {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.eyebrow {
+  color: var(--accent-green);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 34px;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.sub {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.summaryCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+.summaryCard p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.summaryCard strong {
+  color: var(--text-primary);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.green { border-top: 4px solid var(--accent-green); }
+.red { border-top: 4px solid var(--accent-red); }
+.blue { border-top: 4px solid var(--accent-blue); }
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.chartCard {
+  min-height: 420px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+}
+
+.wide, .full {
+  grid-column: 1 / -1;
+}
+
+.chartHeader {
+  margin-bottom: 16px;
+}
+
+.chartHeader h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.chartHeader p {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.chartBody {
+  flex: 1;
+  min-height: 300px;
+  position: relative;
+}
+
+.sankeyWrap {
+  width: 100%;
+  min-height: 320px;
+  overflow-x: auto;
+}
+
+.sankeyWrap svg {
+  width: 100%;
+  min-width: 760px;
+  height: auto;
+  display: block;
+}
+
+.emptyNote {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .summaryGrid { grid-template-columns: repeat(2, 1fr); }
+  .chartGrid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .page { padding: 28px 16px 44px; }
+  .summaryGrid { grid-template-columns: 1fr; }
+  .title { font-size: 28px; }
+}
