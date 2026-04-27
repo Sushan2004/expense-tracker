@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAppState } from '../state/AppState.jsx';
 import useLocalStorage from '../hooks/useLocalStorage.js';
 import TransactionRow from '../components/TransactionRow.jsx';
-import Chip from '../components/Chip.jsx';
+import FilterChipSelect from '../components/FilterChipSelect.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import ErrorBanner from '../components/ErrorBanner.jsx';
 import Skeleton from '../components/Skeleton.jsx';
@@ -28,6 +28,12 @@ const DATE_OPTIONS = [
   { value: '7', label: 'Last 7 days' },
   { value: '30', label: 'Last 30 days' },
   { value: 'month', label: 'This month' },
+];
+
+const TYPE_OPTIONS = [
+  { value: 'all', label: 'All types' },
+  { value: 'expense', label: 'Expenses' },
+  { value: 'income', label: 'Income' },
 ];
 
 export default function Transactions() {
@@ -82,6 +88,20 @@ export default function Transactions() {
   }, [transactions, search, type, categoryId, accountId, dateRange, sort]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
+  const categoryOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All categories' },
+      ...categories.map((category) => ({ value: category.id, label: category.name })),
+    ],
+    [categories]
+  );
+  const accountOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All accounts' },
+      ...accounts.map((account) => ({ value: account.id, label: account.name })),
+    ],
+    [accounts]
+  );
 
   const params = useParams();
   const activeId = params.id;
@@ -131,46 +151,45 @@ export default function Transactions() {
       </header>
 
       <div className="tx-toolbar" role="group" aria-label="Transaction filters">
-        <Chip selected={type !== 'all'} as="label">
-          <Icon name="filter" size={12} strokeWidth={1.7} />
-          <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Filter by type">
-            <option value="all">All types</option>
-            <option value="expense">Expenses</option>
-            <option value="income">Income</option>
-          </select>
-        </Chip>
-        <Chip selected={categoryId !== 'all'} as="label">
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Filter by category">
-            <option value="all">All categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </Chip>
-        <Chip selected={accountId !== 'all'} as="label">
-          <select value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label="Filter by account">
-            <option value="all">All accounts</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
-        </Chip>
-        <Chip secondary selected={dateRange !== 'all'} as="label">
-          <Icon name="calendar" size={12} strokeWidth={1.7} />
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} aria-label="Date range">
-            {DATE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </Chip>
-        <Chip as="label">
-          <Icon name="sort" size={12} strokeWidth={1.7} />
-          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>Sort: {o.label}</option>
-            ))}
-          </select>
-        </Chip>
+        <FilterChipSelect
+          icon="filter"
+          value={type}
+          options={TYPE_OPTIONS}
+          onChange={setType}
+          selected={type !== 'all'}
+          ariaLabel="Filter by type"
+        />
+        <FilterChipSelect
+          value={categoryId}
+          options={categoryOptions}
+          onChange={setCategoryId}
+          selected={categoryId !== 'all'}
+          ariaLabel="Filter by category"
+        />
+        <FilterChipSelect
+          value={accountId}
+          options={accountOptions}
+          onChange={setAccountId}
+          selected={accountId !== 'all'}
+          ariaLabel="Filter by account"
+        />
+        <FilterChipSelect
+          icon="calendar"
+          value={dateRange}
+          options={DATE_OPTIONS}
+          onChange={setDateRange}
+          selected={dateRange !== 'all'}
+          secondary
+          ariaLabel="Date range"
+        />
+        <FilterChipSelect
+          icon="sort"
+          value={sort}
+          options={SORT_OPTIONS}
+          onChange={setSort}
+          prefix="Sort"
+          ariaLabel="Sort"
+        />
       </div>
 
       <div className="tx-layout">

@@ -413,6 +413,67 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 500; }
   padding-right: 4px;
   appearance: none;
 }
+.filter-chip {
+  position: relative;
+  padding: 0;
+  overflow: visible;
+}
+.filter-chip__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  color: inherit;
+  white-space: nowrap;
+}
+.filter-chip__label {
+  font-size: 12px;
+  font-weight: inherit;
+}
+.filter-chip__chevron {
+  color: currentColor;
+  transition: transform 120ms ease;
+}
+.filter-chip__chevron.is-open {
+  transform: rotate(180deg);
+}
+.filter-chip__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: max(100%, 180px);
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(14, 31, 23, 0.10);
+  z-index: 35;
+}
+.filter-chip__option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: left;
+}
+.filter-chip__option:hover,
+.filter-chip__option:focus-visible {
+  background: var(--cream);
+  color: var(--ink);
+}
+.filter-chip__option.is-active {
+  background: var(--mint-wash);
+  color: var(--forest);
+  font-weight: 500;
+}
 
 /* ===== Segmented control ===== */
 .seg {
