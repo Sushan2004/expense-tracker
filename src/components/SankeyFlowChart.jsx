@@ -9,19 +9,11 @@ import { formatCurrency } from '../utils/format.js';
 
 echarts.use([SankeyChart, TooltipComponent, CanvasRenderer]);
 
-const PALETTE = {
-  forest: '#0B3D2E',
-  emerald: '#10B981',
-  emeraldDark: '#059669',
-  catRamp: ['#A7F3D0', '#6EE7B7', '#34D399', '#10B981', '#059669', '#0B3D2E', '#D1E7DB'],
-};
-
-const TOOLTIP_TOKENS = {
-  surface: '#FFFFFF',
-  border: '#E9E7DF',
-  ink: '#0E1F17',
-  muted: '#5B6B63',
-};
+function readCssVar(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -32,41 +24,61 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function colorForNode(node, ramp) {
-  if (node.kind === 'income') return PALETTE.forest;
-  if (node.kind === 'pool') return PALETTE.emeraldDark;
-  if (node.kind === 'savings') return PALETTE.emeraldDark;
+function colorForNode(node, ramp, palette) {
+  if (node.kind === 'income') return palette.forest;
+  if (node.kind === 'pool') return palette.emeraldDark;
+  if (node.kind === 'savings') return palette.emeraldDark;
   if (node.color) return node.color;
   return ramp[0];
 }
 
-export default function SankeyFlowChart({ data, height = 520, framed = true, className = '' }) {
-  const expenseRamp = PALETTE.catRamp;
+export default function SankeyFlowChart({ data, theme, height = 520, framed = true, className = '' }) {
+  const palette = {
+    forest: readCssVar('--accent-surface', '#0B3D2E'),
+    emeraldDark: readCssVar('--emerald-dark', '#059669'),
+    ramp: [
+      readCssVar('--cat-2', '#A7F3D0'),
+      readCssVar('--cat-3', '#6EE7B7'),
+      readCssVar('--cat-4', '#34D399'),
+      readCssVar('--cat-5', '#10B981'),
+      readCssVar('--cat-6', '#059669'),
+      readCssVar('--cat-7', '#0B3D2E'),
+      readCssVar('--cat-1', '#D1E7DB'),
+    ],
+    tooltipBg: readCssVar('--chart-tooltip-bg', '#FFFFFF'),
+    tooltipBorder: readCssVar('--chart-tooltip-border', '#E9E7DF'),
+    tooltipText: readCssVar('--chart-tooltip-text', '#0E1F17'),
+    tooltipMuted: readCssVar('--chart-tooltip-muted', '#5B6B63'),
+    lineBorder: readCssVar('--panel-border-strong', 'rgba(255,255,255,0.4)'),
+    shadow: theme === 'dark'
+      ? 'box-shadow: 0 12px 28px rgba(0,0,0,0.32); border-radius: 12px; padding: 10px 12px;'
+      : 'box-shadow: 0 8px 24px rgba(14,31,23,0.10); border-radius: 12px; padding: 10px 12px;',
+  };
 
   const nodes = useMemo(
     () =>
       data.nodes.map((node, i) => {
-        let color = colorForNode(node, expenseRamp);
+        let color = colorForNode(node, palette.ramp, palette);
 
         if (node.kind === 'expense') {
-          const expenseIndex = data.nodes.slice(0, i).filter((n) => n.kind === 'expense').length;
-          color = expenseRamp[expenseIndex % expenseRamp.length];
+          const expenseIndex = data.nodes.slice(0, i).filter((item) => item.kind === 'expense').length;
+          color = palette.ramp[expenseIndex % palette.ramp.length];
         }
 
         return {
           name: node.name,
           itemStyle: {
             color,
-            borderColor: 'rgba(255,255,255,0.4)',
+            borderColor: palette.lineBorder,
             borderWidth: 1,
           },
           label: {
-            color: TOOLTIP_TOKENS.ink,
+            color: palette.tooltipText,
             fontWeight: 500,
           },
         };
       }),
-    [data, expenseRamp]
+    [data, palette]
   );
 
   const links = useMemo(
@@ -85,23 +97,22 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
       animationEasing: 'cubicOut',
       tooltip: {
         trigger: 'item',
-        backgroundColor: TOOLTIP_TOKENS.surface,
-        borderColor: TOOLTIP_TOKENS.border,
+        backgroundColor: palette.tooltipBg,
+        borderColor: palette.tooltipBorder,
         borderWidth: 1,
         textStyle: {
-          color: TOOLTIP_TOKENS.ink,
+          color: palette.tooltipText,
           fontFamily: 'Inter, -apple-system, sans-serif',
           fontSize: 13,
         },
-        extraCssText:
-          'box-shadow: 0 8px 24px rgba(14,31,23,0.10); border-radius: 12px; padding: 10px 12px;',
+        extraCssText: palette.shadow,
         formatter: (params) => {
           if (params.dataType === 'edge') {
             const amount = formatCurrency(Number(params.data.value));
             return `
               <div style="display:grid;gap:4px;min-width:160px;">
-                <strong style="color:${TOOLTIP_TOKENS.ink};">${escapeHtml(params.data.source)} &rarr; ${escapeHtml(params.data.target)}</strong>
-                <span style="color:${TOOLTIP_TOKENS.muted};">Amount: ${escapeHtml(amount)}</span>
+                <strong style="color:${palette.tooltipText};">${escapeHtml(params.data.source)} &rarr; ${escapeHtml(params.data.target)}</strong>
+                <span style="color:${palette.tooltipMuted};">Amount: ${escapeHtml(amount)}</span>
               </div>
             `;
           }
@@ -110,10 +121,10 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
 
           return `
             <div style="display:grid;gap:4px;">
-              <strong style="color:${TOOLTIP_TOKENS.ink};">${escapeHtml(params.name)}</strong>
+              <strong style="color:${palette.tooltipText};">${escapeHtml(params.name)}</strong>
               ${
                 Number.isFinite(nodeValue) && nodeValue > 0
-                  ? `<span style="color:${TOOLTIP_TOKENS.muted};">Total: ${escapeHtml(formatCurrency(nodeValue))}</span>`
+                  ? `<span style="color:${palette.tooltipMuted};">Total: ${escapeHtml(formatCurrency(nodeValue))}</span>`
                   : ''
               }
             </div>
@@ -143,7 +154,7 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
             curveness: 0.5,
           },
           label: {
-            color: TOOLTIP_TOKENS.ink,
+            color: palette.tooltipText,
             fontSize: 12,
             fontWeight: 500,
             fontFamily: 'Inter, -apple-system, sans-serif',
@@ -153,7 +164,7 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
         },
       ],
     }),
-    [links, nodes]
+    [links, nodes, palette]
   );
 
   const chart = (
@@ -169,14 +180,14 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
 
   if (!framed) {
     return (
-      <div className={className} aria-label="Money flow sankey chart">
+      <div className={className} aria-label="Money flow sankey chart" data-theme-render={theme}>
         {chart}
       </div>
     );
   }
 
   return (
-    <section className={`card card--lg ${className}`.trim()} aria-label="Money flow sankey chart">
+    <section className={`card card--lg ${className}`.trim()} aria-label="Money flow sankey chart" data-theme-render={theme}>
       {chart}
     </section>
   );
@@ -195,6 +206,7 @@ SankeyFlowChart.propTypes = {
       })
     ).isRequired,
   }).isRequired,
+  theme: PropTypes.oneOf(['light', 'dark']).isRequired,
   height: PropTypes.number,
   framed: PropTypes.bool,
   className: PropTypes.string,

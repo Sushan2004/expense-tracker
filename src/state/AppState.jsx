@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   DEFAULT_CATEGORIES,
@@ -10,10 +10,11 @@ import {
   normalizeCategoryIcon,
   resolveCategoryColor,
 } from '../utils/categoryAppearance.js';
-import { uniqueId } from '../utils/selectors.js';
+import { checkingBalance, uniqueId } from '../utils/selectors.js';
 import { todayIso } from '../utils/format.js';
 
 export const APP_STATE_STORAGE_KEY = 'et:app-state';
+const THEME_MODES = new Set(['light', 'dark', 'system']);
 
 const AppStateContext = createContext(null);
 const defaultCategoryIds = new Set(DEFAULT_CATEGORIES.map((category) => category.id));
@@ -68,6 +69,10 @@ function normalizeTransaction(transaction) {
 function normalizeTransactions(value) {
   if (!Array.isArray(value)) return [];
   return value.map(normalizeTransaction).filter(Boolean);
+}
+
+function normalizeThemeMode(value) {
+  return THEME_MODES.has(value) ? value : 'system';
 }
 
 function clampPercent(value) {
@@ -126,6 +131,58 @@ function normalizeIncomeEntry(entry) {
 function normalizeIncomeEntries(value) {
   if (!Array.isArray(value)) return [];
   return value.map(normalizeIncomeEntry).filter(Boolean);
+}
+
+function normalizeBudgetAlertThreshold(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0.8;
+  const ratio = numeric > 1 ? numeric / 100 : numeric;
+  return Math.max(0, Math.min(1, ratio || 0.8));
+}
+
+function normalizeBudget(budget) {
+  if (!budget?.categoryId) return null;
+
+  const amount = Number(budget.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  const periodType = ['weekly', 'monthly', 'yearly'].includes(budget.periodType)
+    ? budget.periodType
+    : 'monthly';
+  const rawPeriodKey = budget.periodKey || budget.month || budget.year || budget.week;
+  const periodKey = String(rawPeriodKey || '').slice(0, periodType === 'weekly' ? 10 : periodType === 'monthly' ? 7 : 4);
+
+  if (
+    (periodType === 'weekly' && !/^\d{4}-\d{2}-\d{2}$/.test(periodKey))
+    || (periodType === 'monthly' && !/^\d{4}-\d{2}$/.test(periodKey))
+    || (periodType === 'yearly' && !/^\d{4}$/.test(periodKey))
+  ) {
+    return null;
+  }
+
+  return {
+    categoryId: String(budget.categoryId),
+    periodType,
+    periodKey,
+    amount,
+    alertThreshold: normalizeBudgetAlertThreshold(budget.alertThreshold),
+  };
+}
+
+function normalizeBudgets(value) {
+  if (!Array.isArray(value)) return [];
+
+  const deduped = new Map();
+  value.forEach((budget) => {
+    const normalized = normalizeBudget(budget);
+    if (!normalized) return;
+    deduped.set(
+      `${normalized.categoryId}:${normalized.periodType}:${normalized.periodKey}`,
+      normalized
+    );
+  });
+
+  return [...deduped.values()];
 }
 
 // Migrates older "incomeSources had amount" records into the split shape
@@ -216,15 +273,18 @@ function normalizeGoals(value) {
 
 function normalizeState(payload) {
   const source = payload || {};
+  const income = migrateIncomeData(source);
 
   return {
     user: source.user ? structuredClone(source.user) : null,
+    themeMode: normalizeThemeMode(source.themeMode),
     accounts: cloneList(source.accounts),
     categories: mergeCategories(source.categories),
     transactions: normalizeTransactions(source.transactions),
-    budgets: cloneList(source.budgets),
+    budgets: normalizeBudgets(source.budgets),
     goals: normalizeGoals(source.goals),
-    incomeSources: normalizeIncomeSources(source.incomeSources),
+    incomeSources: income.sources,
+    incomeEntries: income.entries,
   };
 }
 
@@ -242,12 +302,14 @@ function readStoredAppState() {
 function getPersistableState(state) {
   return {
     user: state.user ? structuredClone(state.user) : null,
+    themeMode: normalizeThemeMode(state.themeMode),
     accounts: cloneList(state.accounts),
     categories: cloneList(state.categories),
     transactions: cloneList(state.transactions),
     budgets: cloneList(state.budgets),
     goals: cloneList(state.goals),
     incomeSources: cloneList(state.incomeSources),
+    incomeEntries: cloneList(state.incomeEntries),
   };
 }
 
@@ -332,6 +394,8 @@ function reducer(state, action) {
     }
     case 'load/error':
       return { ...state, status: 'ready', error: action.payload };
+    case 'theme/set':
+      return { ...state, themeMode: normalizeThemeMode(action.payload) };
     case 'tx/add':
       return { ...state, transactions: [action.payload, ...state.transactions] };
     case 'tx/update':
@@ -353,21 +417,105 @@ function reducer(state, action) {
         ...state,
         categories: [...state.categories, normalizeCategory(action.payload, false)].filter(Boolean),
       };
+    case 'category/delete': {
+      const categoryId = action.payload;
+      if (!categoryId || defaultCategoryIds.has(categoryId)) return state;
+      if (state.transactions.some((transaction) => transaction.categoryId === categoryId)) return state;
+      if (state.budgets.some((budget) => budget.categoryId === categoryId)) return state;
+
+      return {
+        ...state,
+        categories: state.categories.filter((category) => category.id !== categoryId),
+      };
+    }
     case 'budget/update': {
-      const { categoryId, month, amount } = action.payload;
+      const normalized = normalizeBudget(action.payload);
+      if (!normalized) return state;
+
+      const { categoryId, periodType, periodKey } = normalized;
       const index = state.budgets.findIndex(
-        (budget) => budget.categoryId === categoryId && budget.month === month
+        (budget) =>
+          budget.categoryId === categoryId
+          && budget.periodType === periodType
+          && budget.periodKey === periodKey
       );
       const nextBudgets = [...state.budgets];
 
-      if (index >= 0) nextBudgets[index] = { ...nextBudgets[index], amount };
-      else nextBudgets.push({ categoryId, month, amount });
+      if (index >= 0) nextBudgets[index] = normalized;
+      else nextBudgets.push(normalized);
 
       return { ...state, budgets: nextBudgets };
+    }
+    case 'budget/delete': {
+      const { categoryId, periodType, periodKey } = action.payload || {};
+      if (!categoryId || !periodType || !periodKey) return state;
+
+      return {
+        ...state,
+        budgets: state.budgets.filter(
+          (budget) =>
+            !(
+              budget.categoryId === categoryId
+              && budget.periodType === periodType
+              && budget.periodKey === periodKey
+            )
+        ),
+      };
     }
     case 'incomeSource/add': {
       const normalized = normalizeIncomeSource(action.payload);
       if (!normalized) return state;
+      if (state.incomeSources.some((s) => s.name.toLowerCase() === normalized.name.toLowerCase())) {
+        return state;
+      }
+      return { ...state, incomeSources: [...state.incomeSources, normalized] };
+    }
+    case 'incomeSource/update': {
+      const current = state.incomeSources.find((source) => source.id === action.payload.id);
+      if (!current) return state;
+
+      const normalized = normalizeIncomeSource({ ...current, ...action.payload });
+      if (!normalized) return state;
+
+      if (
+        state.incomeSources.some(
+          (source) =>
+            source.id !== normalized.id
+            && source.name.toLowerCase() === normalized.name.toLowerCase()
+        )
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        incomeSources: state.incomeSources.map((source) =>
+          source.id === normalized.id ? normalized : source
+        ),
+        transactions: state.transactions.map((transaction) => {
+          const relatedEntry = state.incomeEntries.find(
+            (entry) => entry.transactionId === transaction.id && entry.sourceId === normalized.id
+          );
+
+          if (!relatedEntry) return transaction;
+          return { ...transaction, merchant: normalized.name };
+        }),
+      };
+    }
+    case 'incomeSource/delete': {
+      // Refuse if any entry still references this source.
+      if (state.incomeEntries.some((entry) => entry.sourceId === action.payload)) return state;
+      return {
+        ...state,
+        incomeSources: state.incomeSources.filter((source) => source.id !== action.payload),
+      };
+    }
+    case 'incomeEntry/add': {
+      const normalized = normalizeIncomeEntry(action.payload);
+      if (!normalized) return state;
+
+      const source = state.incomeSources.find((s) => s.id === normalized.sourceId);
+      const merchantName = source?.name || 'Income';
 
       const savedAmount = (normalized.amount * normalized.savePercent) / 100;
       const validSplit = normalized.splitConfig.filter((entry) =>
@@ -377,17 +525,17 @@ function reducer(state, action) {
       const transactionId = normalized.transactionId || uniqueId('t');
       const transaction = {
         id: transactionId,
-        merchant: normalized.name,
-        categoryId: 'cat-other',
+        merchant: merchantName,
+        categoryId: 'cat-income',
         accountId: null,
         amount: normalized.amount,
-        date: todayIso(),
-        note: normalized.note || `Income source · ${normalized.frequency}`,
+        date: normalized.date,
+        note: normalized.note || `Income · ${normalized.frequency}`,
         recurring: normalized.frequency !== 'one-time',
         type: 'income',
       };
 
-      const sourceWithRefs = { ...normalized, transactionId, splitConfig: validSplit };
+      const entryWithRefs = { ...normalized, transactionId, splitConfig: validSplit };
 
       const nextGoals = savedAmount > 0
         ? distributeSavedAmount(state.goals, savedAmount, validSplit)
@@ -395,25 +543,25 @@ function reducer(state, action) {
 
       return {
         ...state,
-        incomeSources: [sourceWithRefs, ...state.incomeSources],
+        incomeEntries: [entryWithRefs, ...state.incomeEntries],
         transactions: [transaction, ...state.transactions],
         goals: nextGoals,
       };
     }
-    case 'incomeSource/delete': {
-      const source = state.incomeSources.find((item) => item.id === action.payload);
-      if (!source) return state;
+    case 'incomeEntry/delete': {
+      const entry = state.incomeEntries.find((item) => item.id === action.payload);
+      if (!entry) return state;
 
-      const savedAmount = (source.amount * source.savePercent) / 100;
+      const savedAmount = (entry.amount * entry.savePercent) / 100;
       const nextGoals = savedAmount > 0
-        ? reverseSavedAmount(state.goals, savedAmount, source.splitConfig)
+        ? reverseSavedAmount(state.goals, savedAmount, entry.splitConfig)
         : state.goals;
 
       return {
         ...state,
-        incomeSources: state.incomeSources.filter((item) => item.id !== source.id),
-        transactions: source.transactionId
-          ? state.transactions.filter((tx) => tx.id !== source.transactionId)
+        incomeEntries: state.incomeEntries.filter((item) => item.id !== entry.id),
+        transactions: entry.transactionId
+          ? state.transactions.filter((tx) => tx.id !== entry.transactionId)
           : state.transactions,
         goals: nextGoals,
       };
@@ -444,7 +592,12 @@ function reducer(state, action) {
     case 'goal/transfer': {
       const { goalId, amount } = action.payload;
       const numericAmount = Number(amount);
-      if (!Number.isFinite(numericAmount) || numericAmount <= 0) return state;
+      const goalExists = state.goals.some((goal) => goal.id === goalId);
+      const available = Math.max(0, checkingBalance({ transactions: state.transactions, goals: state.goals }));
+
+      if (!goalExists || !Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > available) {
+        return state;
+      }
 
       return {
         ...state,
@@ -466,6 +619,12 @@ function reducer(state, action) {
 
 export function AppStateProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, createBootstrapState);
+  const [systemTheme, setSystemTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  const resolvedTheme = state.themeMode === 'system' ? systemTheme : state.themeMode;
 
   useEffect(() => {
     if (state.status !== 'ready') return;
@@ -481,12 +640,40 @@ export function AppStateProvider({ children }) {
   }, [state]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = (event) => setSystemTheme(event.matches ? 'dark' : 'light');
+
+    setSystemTheme(media.matches ? 'dark' : 'light');
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themeMode = state.themeMode;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme, state.themeMode]);
+
+  useEffect(() => {
     if (!state.toast) return undefined;
     const timeoutId = setTimeout(() => dispatch({ type: 'toast/clear' }), 2600);
     return () => clearTimeout(timeoutId);
   }, [state.toast]);
 
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+  const value = useMemo(
+    () => ({ state, dispatch, resolvedTheme, systemTheme }),
+    [resolvedTheme, state, systemTheme]
+  );
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 

@@ -35,7 +35,10 @@ export default function Dashboard() {
     [transactions, month]
   );
   const monthBudget = useMemo(
-    () => budgets.filter((budget) => budget.month === month).reduce((sum, budget) => sum + budget.amount, 0),
+    () =>
+      budgets
+        .filter((budget) => budget.periodType === 'monthly' && budget.periodKey === month)
+        .reduce((sum, budget) => sum + budget.amount, 0),
     [budgets, month]
   );
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -45,7 +48,9 @@ export default function Dashboard() {
   });
   const hasTransactions = transactions.length > 0;
   const hasAccounts = accounts.length > 0;
-  const hasBudgets = budgets.some((budget) => budget.month === month);
+  const hasBudgets = budgets.some(
+    (budget) => budget.periodType === 'monthly' && budget.periodKey === month
+  );
 
   if (status === 'loading' || status === 'idle') {
     return <DashboardSkeleton />;
@@ -170,7 +175,10 @@ export default function Dashboard() {
               topSpend.map(({ categoryId, amount }) => {
                 const category = categoryById(categories, categoryId);
                 const budget = budgets.find(
-                  (item) => item.categoryId === categoryId && item.month === month
+                  (item) =>
+                    item.categoryId === categoryId
+                    && item.periodType === 'monthly'
+                    && item.periodKey === month
                 );
                 const max = budget?.amount || amount;
 

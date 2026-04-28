@@ -26,8 +26,29 @@ const GROUPS = [
   },
 ];
 
+const THEME_OPTIONS = [
+  {
+    value: 'light',
+    label: 'Light mode',
+    hint: 'Bright canvas with soft mint accents',
+    icon: 'sun',
+  },
+  {
+    value: 'dark',
+    label: 'Dark mode',
+    hint: 'Deep Forest dark theme',
+    icon: 'moon',
+  },
+  {
+    value: 'system',
+    label: 'System default',
+    hint: 'Follow your device appearance',
+    icon: 'settings',
+  },
+];
+
 export default function Settings() {
-  const { state } = useAppState();
+  const { state, dispatch, resolvedTheme, systemTheme } = useAppState();
   const [reduceMotion, setReduceMotion] = useLocalStorage('et:reduce-motion', false);
   const [tightLists, setTightLists] = useLocalStorage('et:tight-lists', false);
   const hasTransactions = state.transactions.length > 0;
@@ -57,8 +78,8 @@ export default function Settings() {
                           width: 32,
                           height: 32,
                           borderRadius: 9,
-                          background: 'var(--mint-wash)',
-                          color: 'var(--forest)',
+                          background: 'var(--accent-soft-bg)',
+                          color: 'var(--accent-soft-ink)',
                           display: 'grid',
                           placeItems: 'center',
                         }}
@@ -79,6 +100,56 @@ export default function Settings() {
         </div>
 
         <div className="stack">
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Appearance</div>
+            <div className="appearance-grid">
+              {THEME_OPTIONS.map((option) => {
+                const active = state.themeMode === option.value;
+                const previewClass =
+                  option.value === 'light'
+                    ? 'appearance-option__preview--light'
+                    : option.value === 'dark'
+                      ? 'appearance-option__preview--dark'
+                      : resolvedTheme === 'dark'
+                        ? 'appearance-option__preview--dark'
+                        : 'appearance-option__preview--light';
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`appearance-option${active ? ' is-active' : ''}`}
+                    onClick={() => dispatch({ type: 'theme/set', payload: option.value })}
+                    aria-pressed={active}
+                  >
+                    <span className={`appearance-option__preview ${previewClass}`} aria-hidden="true">
+                      <span className="appearance-option__preview-top" />
+                      <span className="appearance-option__preview-card" />
+                      <span className="appearance-option__preview-card appearance-option__preview-card--small" />
+                    </span>
+                    <span className="appearance-option__copy">
+                      <span className="appearance-option__title-row">
+                        <span className="appearance-option__title">{option.label}</span>
+                        {active ? (
+                          <span className="appearance-option__badge">
+                            <Icon name="check" size={12} strokeWidth={2} />
+                            Selected
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="appearance-option__hint">{option.hint}</span>
+                      {option.value === 'system' ? (
+                        <span className="appearance-option__meta">
+                          Currently using {systemTheme === 'dark' ? 'Deep Forest dark' : 'Light mode'}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section>
             <div className="t-eyebrow" style={{ marginBottom: 8 }}>Display</div>
             <div className="settings-list">

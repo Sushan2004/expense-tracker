@@ -18,7 +18,7 @@ export default function Sidebar({ user }) {
       <div className="sidebar__brand">
         <span className="sidebar__brand-mark" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-            <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="#A7F3D0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
         <span className="sidebar__brand-name">Expense Tracker</span>

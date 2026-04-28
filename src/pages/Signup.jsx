@@ -50,7 +50,7 @@ export default function Signup() {
         <div className="auth__brand">
           <span className="auth__brand-mark" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="#A7F3D0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
           <span className="auth__brand-name">Expense Tracker</span>
@@ -69,8 +69,8 @@ export default function Signup() {
                   width: 36,
                   height: 36,
                   borderRadius: 12,
-                  background: 'var(--mint-wash)',
-                  color: 'var(--forest)',
+                  background: 'var(--accent-soft-bg)',
+                  color: 'var(--accent-soft-ink)',
                   display: 'grid',
                   placeItems: 'center',
                 }}
@@ -162,16 +162,16 @@ export default function Signup() {
                   width: 32,
                   height: 32,
                   borderRadius: 9,
-                  background: 'rgba(167,243,208,0.15)',
+                  background: 'var(--auth-accent-soft)',
                   display: 'grid',
                   placeItems: 'center',
                 }}
               >
-                <Icon name={item.icon} size={16} stroke="#A7F3D0" />
+                <Icon name={item.icon} size={16} stroke="var(--mint)" />
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: 'rgba(167,243,208,0.65)' }}>{item.body}</div>
+                <div style={{ fontSize: 11, color: 'var(--auth-accent-text)' }}>{item.body}</div>
               </div>
               <div
                 style={{
@@ -179,7 +179,7 @@ export default function Signup() {
                   color: 'var(--mint)',
                   padding: '4px 8px',
                   borderRadius: 999,
-                  background: 'rgba(167,243,208,0.12)',
+                  background: 'var(--auth-accent-soft)',
                 }}
               >
                 {item.badge}

@@ -1,36 +1,53 @@
 import PropTypes from 'prop-types';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CategoryIcon from './CategoryIcon.jsx';
 import EmptyState from './EmptyState.jsx';
 import Icon from './Icon.jsx';
 import SankeyFlowChart from './SankeyFlowChart.jsx';
 import SegmentedControl from './SegmentedControl.jsx';
-import { getCategoryAccentStyle, DEFAULT_CATEGORY_COLOR } from '../utils/categoryAppearance.js';
-import { formatCurrency } from '../utils/format.js';
+import SpendingDoughnutChart from './SpendingDoughnutChart.jsx';
+import { getCategoryAccentStyle, resolveCategoryColor } from '../utils/categoryAppearance.js';
+import { formatCurrency, fullDate } from '../utils/format.js';
 import { categoryById } from '../utils/selectors.js';
 
 const VIEWS = [
-  { value: 'bars', label: 'Bars' },
+  { value: 'bars', label: 'Breakdown' },
   { value: 'flow', label: 'Flow' },
 ];
 
 export default function ReportsBreakdownCard({
   spending,
+  expenseTransactions,
   categories,
   flowData,
+  resolvedTheme,
   view,
   onViewChange,
   hasAnyTransactions,
   hasPeriodTransactions,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
   const expandButtonRef = useRef(null);
   const closeButtonRef = useRef(null);
   const dialogTitleId = useId();
   const dialogDescriptionId = useId();
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const canExpand = view === 'bars' ? spending.length > 0 : flowData.links.length > 0;
+
+  useEffect(() => {
+    if (view !== 'bars') return;
+
+    if (spending.length === 0) {
+      setActiveCategoryId(null);
+      return;
+    }
+
+    if (!spending.some((item) => item.categoryId === activeCategoryId)) {
+      setActiveCategoryId(spending[0].categoryId);
+    }
+  }, [activeCategoryId, spending, view]);
 
   useEffect(() => {
     if (!expanded) return undefined;
@@ -72,7 +89,7 @@ export default function ReportsBreakdownCard({
 
   const dialogCopy =
     view === 'bars'
-      ? 'Expanded view of this period\'s category spending.'
+      ? 'Expanded view of this period\'s spending breakdown and category transactions.'
       : 'Expanded view of how income flows into spending categories and savings.';
 
   return (
@@ -98,10 +115,14 @@ export default function ReportsBreakdownCard({
 
         <BreakdownContent
           spending={spending}
+          expenseTransactions={expenseTransactions}
           categories={categories}
           flowData={flowData}
+          resolvedTheme={resolvedTheme}
           view={view}
           expanded={false}
+          activeCategoryId={activeCategoryId}
+          onActiveCategoryChange={setActiveCategoryId}
           hasAnyTransactions={hasAnyTransactions}
           hasPeriodTransactions={hasPeriodTransactions}
         />
@@ -148,10 +169,14 @@ export default function ReportsBreakdownCard({
                 <div className="reports-breakdown__dialog-body">
                   <BreakdownContent
                     spending={spending}
+                    expenseTransactions={expenseTransactions}
                     categories={categories}
                     flowData={flowData}
+                    resolvedTheme={resolvedTheme}
                     view={view}
                     expanded
+                    activeCategoryId={activeCategoryId}
+                    onActiveCategoryChange={setActiveCategoryId}
                     hasAnyTransactions={hasAnyTransactions}
                     hasPeriodTransactions={hasPeriodTransactions}
                   />
@@ -167,10 +192,14 @@ export default function ReportsBreakdownCard({
 
 function BreakdownContent({
   spending,
+  expenseTransactions,
   categories,
   flowData,
+  resolvedTheme,
   view,
   expanded,
+  activeCategoryId,
+  onActiveCategoryChange,
   hasAnyTransactions,
   hasPeriodTransactions,
 }) {
@@ -178,6 +207,7 @@ function BreakdownContent({
     return (
       <FlowBreakdown
         data={flowData}
+        resolvedTheme={resolvedTheme}
         expanded={expanded}
         hasAnyTransactions={hasAnyTransactions}
         hasPeriodTransactions={hasPeriodTransactions}
@@ -186,37 +216,75 @@ function BreakdownContent({
   }
 
   return (
-    <BarsBreakdown
+    <DoughnutBreakdown
       spending={spending}
+      expenseTransactions={expenseTransactions}
       categories={categories}
+      resolvedTheme={resolvedTheme}
       expanded={expanded}
+      activeCategoryId={activeCategoryId}
+      onActiveCategoryChange={onActiveCategoryChange}
       hasAnyTransactions={hasAnyTransactions}
       hasPeriodTransactions={hasPeriodTransactions}
     />
   );
 }
 
-function BarsBreakdown({
+function DoughnutBreakdown({
   spending,
+  expenseTransactions,
   categories,
+  resolvedTheme,
   expanded,
+  activeCategoryId,
+  onActiveCategoryChange,
   hasAnyTransactions,
   hasPeriodTransactions,
 }) {
-  const max = Math.max(1, ...spending.map((item) => item.amount));
   const total = spending.reduce((sum, item) => sum + item.amount, 0);
+  const segments = useMemo(() => {
+    const transactionsByCategory = new Map();
 
-  if (spending.length === 0) {
+    expenseTransactions.forEach((transaction) => {
+      if (!transactionsByCategory.has(transaction.categoryId)) {
+        transactionsByCategory.set(transaction.categoryId, []);
+      }
+      transactionsByCategory.get(transaction.categoryId).push(transaction);
+    });
+
+    return spending.map((item) => {
+      const category = categoryById(categories, item.categoryId);
+      const transactions = [...(transactionsByCategory.get(item.categoryId) || [])].sort((a, b) => {
+        if (a.date === b.date) return Math.abs(b.amount) - Math.abs(a.amount);
+        return a.date < b.date ? 1 : -1;
+      });
+
+      return {
+        categoryId: item.categoryId,
+        name: category?.name || 'Other',
+        icon: category?.icon,
+        colorVar: category?.colorVar,
+        amount: item.amount,
+        share: total > 0 ? item.amount / total : 0,
+        transactionCount: transactions.length,
+        transactions,
+      };
+    });
+  }, [categories, expenseTransactions, spending, total]);
+
+  const activeSegment = segments.find((segment) => segment.categoryId === activeCategoryId) || segments[0] || null;
+
+  if (segments.length === 0) {
     const emptyCopy = !hasAnyTransactions
-      ? 'Add your first expense to see reports and category trends.'
+      ? 'Add expenses to see your breakdown.'
       : hasPeriodTransactions
-        ? 'Add an expense in this period to compare categories here.'
-        : 'No spending data is available for this period yet.';
+        ? 'Add expenses to see your breakdown.'
+        : 'No spending data yet. Add expenses to see your breakdown.';
 
     return (
       <div className={`reports-breakdown__empty${expanded ? ' is-expanded' : ''}`}>
         <EmptyState
-          title="No spending data available"
+          title="No spending data yet"
           copy={emptyCopy}
         />
       </div>
@@ -224,43 +292,110 @@ function BarsBreakdown({
   }
 
   return (
-    <div className={`reports-bars${expanded ? ' reports-bars--expanded' : ''}`}>
-      {spending.map((item) => {
-        const category = categoryById(categories, item.categoryId);
-        const ratio = (item.amount / max) * 100;
-        const share = total > 0 ? item.amount / total : 0;
-        const fill = category?.colorVar || DEFAULT_CATEGORY_COLOR;
+    <div className={`reports-breakdown-detail${expanded ? ' reports-breakdown-detail--expanded' : ''}`}>
+      <div className="reports-breakdown-detail__summary">
+        <SpendingDoughnutChart
+          segments={segments}
+          total={total}
+          theme={resolvedTheme}
+          expanded={expanded}
+          activeCategoryId={activeSegment?.categoryId || null}
+          onSelectCategory={onActiveCategoryChange}
+        />
+        <div className="reports-breakdown-detail__caption">
+          <span className="reports-breakdown-detail__caption-title">Category details</span>
+          <span className="reports-breakdown-detail__caption-copy">
+            Select a chart slice or category row to inspect the expense transactions behind it.
+          </span>
+        </div>
+      </div>
 
-        return (
-          <div key={item.categoryId} className="reports-bars__row">
-            <div className="reports-bars__head">
-              <div className="reports-bars__label-group">
-                <span className="reports-bars__label-row">
-                  <span className="reports-bars__icon" style={getCategoryAccentStyle(category?.colorVar, 0.14)}>
-                    <CategoryIcon category={category} categoryId={item.categoryId} size={14} />
+      <div className="reports-category-breakdown" aria-label="Detailed category spending breakdown">
+        {segments.map((segment) => {
+          const isActive = segment.categoryId === activeSegment?.categoryId;
+          const itemId = `reports-category-${segment.categoryId}`;
+
+          return (
+            <section
+              key={segment.categoryId}
+              className={`reports-category-breakdown__item${isActive ? ' is-active' : ''}`}
+            >
+              <button
+                type="button"
+                className="reports-category-breakdown__toggle"
+                aria-expanded={isActive}
+                aria-controls={itemId}
+                onClick={() => onActiveCategoryChange(segment.categoryId)}
+              >
+                <span className="reports-category-breakdown__main">
+                  <span
+                    className="reports-category-breakdown__icon"
+                    style={getCategoryAccentStyle(segment.colorVar, 0.15)}
+                    aria-hidden="true"
+                  >
+                    <CategoryIcon category={segment} categoryId={segment.categoryId} size={15} />
                   </span>
-                  <span className="reports-bars__label">{category?.name || 'Other'}</span>
+
+                  <span className="reports-category-breakdown__copy">
+                    <span className="reports-category-breakdown__name-row">
+                      <span className="reports-category-breakdown__name">{segment.name}</span>
+                      <span
+                        className="reports-category-breakdown__dot"
+                        style={{ backgroundColor: resolveCategoryColor(segment.colorVar) }}
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span className="reports-category-breakdown__meta">
+                      {formatCount(segment.transactionCount, 'transaction')} / {Math.round(segment.share * 100)}% of spending
+                    </span>
+                  </span>
                 </span>
-                {expanded ? (
-                  <span className="reports-bars__share">{Math.round(share * 100)}% of spending</span>
-                ) : null}
-              </div>
-              <span className="reports-bars__value tnum">{formatCurrency(item.amount)}</span>
-            </div>
-            <div className="reports-bars__track">
-              <div
-                className="reports-bars__fill"
-                style={{ width: `${ratio}%`, background: fill }}
-              />
-            </div>
-          </div>
-        );
-      })}
+
+                <span className="reports-category-breakdown__stats">
+                  <span className="reports-category-breakdown__amount tnum">{formatCurrency(segment.amount)}</span>
+                  <span className="reports-category-breakdown__share tnum">{Math.round(segment.share * 100)}%</span>
+                  <span className="reports-category-breakdown__chevron" aria-hidden="true">
+                    <Icon name={isActive ? 'arrowUp' : 'arrowDown'} size={14} strokeWidth={1.8} />
+                  </span>
+                </span>
+              </button>
+
+              {isActive ? (
+                <div id={itemId} className="reports-category-breakdown__panel">
+                  <div className="reports-category-breakdown__transactions">
+                    {segment.transactions.map((transaction) => (
+                      <article key={transaction.id} className="reports-category-breakdown__transaction">
+                        <div className="reports-category-breakdown__transaction-main">
+                          <div className="reports-category-breakdown__transaction-name">
+                            {transaction.merchant || segment.name}
+                          </div>
+                          <div className="reports-category-breakdown__transaction-date">
+                            {fullDate(transaction.date)}
+                          </div>
+                          {transaction.note ? (
+                            <div className="reports-category-breakdown__transaction-note">
+                              {transaction.note}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="reports-category-breakdown__transaction-amount tnum">
+                          {formatCurrency(Math.abs(transaction.amount))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function FlowBreakdown({ data, expanded, hasAnyTransactions, hasPeriodTransactions }) {
+function FlowBreakdown({ data, resolvedTheme, expanded, hasAnyTransactions, hasPeriodTransactions }) {
   if (!data.links.length) {
     const emptyCopy = !hasAnyTransactions
       ? 'Saving rate will appear after you add income and expenses.'
@@ -285,6 +420,7 @@ function FlowBreakdown({ data, expanded, hasAnyTransactions, hasPeriodTransactio
       </div>
       <SankeyFlowChart
         data={data}
+        theme={resolvedTheme}
         height={expanded ? 520 : 360}
         framed={false}
         className="reports-flow-chart"
@@ -293,11 +429,25 @@ function FlowBreakdown({ data, expanded, hasAnyTransactions, hasPeriodTransactio
   );
 }
 
+function formatCount(value, noun) {
+  return `${value} ${value === 1 ? noun : `${noun}s`}`;
+}
+
 ReportsBreakdownCard.propTypes = {
   spending: PropTypes.arrayOf(
     PropTypes.shape({
       categoryId: PropTypes.string.isRequired,
       amount: PropTypes.number.isRequired,
+    })
+  ).isRequired,
+  expenseTransactions: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      merchant: PropTypes.string,
+      amount: PropTypes.number.isRequired,
+      date: PropTypes.string.isRequired,
+      note: PropTypes.string,
+      categoryId: PropTypes.string.isRequired,
     })
   ).isRequired,
   categories: PropTypes.arrayOf(
@@ -309,6 +459,7 @@ ReportsBreakdownCard.propTypes = {
     })
   ).isRequired,
   flowData: SankeyFlowChart.propTypes.data,
+  resolvedTheme: PropTypes.oneOf(['light', 'dark']).isRequired,
   view: PropTypes.oneOf(['bars', 'flow']).isRequired,
   onViewChange: PropTypes.func.isRequired,
   hasAnyTransactions: PropTypes.bool.isRequired,
@@ -317,24 +468,33 @@ ReportsBreakdownCard.propTypes = {
 
 BreakdownContent.propTypes = {
   spending: ReportsBreakdownCard.propTypes.spending,
+  expenseTransactions: ReportsBreakdownCard.propTypes.expenseTransactions,
   categories: ReportsBreakdownCard.propTypes.categories,
   flowData: SankeyFlowChart.propTypes.data,
+  resolvedTheme: ReportsBreakdownCard.propTypes.resolvedTheme,
   view: PropTypes.oneOf(['bars', 'flow']).isRequired,
   expanded: PropTypes.bool.isRequired,
+  activeCategoryId: PropTypes.string,
+  onActiveCategoryChange: PropTypes.func.isRequired,
   hasAnyTransactions: PropTypes.bool.isRequired,
   hasPeriodTransactions: PropTypes.bool.isRequired,
 };
 
-BarsBreakdown.propTypes = {
+DoughnutBreakdown.propTypes = {
   spending: ReportsBreakdownCard.propTypes.spending,
+  expenseTransactions: ReportsBreakdownCard.propTypes.expenseTransactions,
   categories: ReportsBreakdownCard.propTypes.categories,
+  resolvedTheme: ReportsBreakdownCard.propTypes.resolvedTheme,
   expanded: PropTypes.bool.isRequired,
+  activeCategoryId: PropTypes.string,
+  onActiveCategoryChange: PropTypes.func.isRequired,
   hasAnyTransactions: PropTypes.bool.isRequired,
   hasPeriodTransactions: PropTypes.bool.isRequired,
 };
 
 FlowBreakdown.propTypes = {
   data: SankeyFlowChart.propTypes.data,
+  resolvedTheme: ReportsBreakdownCard.propTypes.resolvedTheme,
   expanded: PropTypes.bool.isRequired,
   hasAnyTransactions: PropTypes.bool.isRequired,
   hasPeriodTransactions: PropTypes.bool.isRequired,

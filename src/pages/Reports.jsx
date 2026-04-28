@@ -4,12 +4,19 @@ import ReportsBreakdownCard from '../components/ReportsBreakdownCard.jsx';
 import SegmentedControl from '../components/SegmentedControl.jsx';
 import StatCard from '../components/StatCard.jsx';
 import { useAppState } from '../state/AppState.jsx';
-import { formatCurrency, formatPercent, isoMonth } from '../utils/format.js';
+import {
+  currentReportPeriodKey,
+  elapsedDaysInReportPeriod,
+  formatCurrency,
+  formatPercent,
+  formatReportPeriodLabel,
+  matchesReportPeriod,
+} from '../utils/format.js';
 import {
   categoryById,
   getSankeyData,
-  monthTotals,
-  spendingByCategory,
+  spendingByCategoryEntries,
+  totalsForTransactions,
 } from '../utils/selectors.js';
 
 const PERIODS = [
@@ -20,22 +27,34 @@ const PERIODS = [
 ];
 
 export default function Reports() {
-  const { state } = useAppState();
+  const { state, resolvedTheme } = useAppState();
   const { transactions, categories } = state;
   const [period, setPeriod] = useState('month');
   const [view, setView] = useState('bars');
-  const month = isoMonth();
+  const periodKey = useMemo(() => currentReportPeriodKey(period), [period]);
+  const periodLabel = useMemo(
+    () => formatReportPeriodLabel(period, periodKey),
+    [period, periodKey]
+  );
   const periodTransactions = useMemo(
-    () => transactions.filter((transaction) => transaction.date.startsWith(month)),
-    [transactions, month]
+    () =>
+      transactions.filter((transaction) => matchesReportPeriod(transaction.date, period, periodKey)),
+    [period, periodKey, transactions]
   );
   const totals = useMemo(
-    () => monthTotals(periodTransactions, month),
-    [periodTransactions, month]
+    () => totalsForTransactions(periodTransactions),
+    [periodTransactions]
   );
   const spending = useMemo(
-    () => spendingByCategory(periodTransactions, month),
-    [periodTransactions, month]
+    () => spendingByCategoryEntries(periodTransactions),
+    [periodTransactions]
+  );
+  const expenseTransactions = useMemo(
+    () =>
+      periodTransactions.filter(
+        (transaction) => transaction.type !== 'income' && Number(transaction.amount) < 0
+      ),
+    [periodTransactions]
   );
   const flowData = useMemo(
     () => getSankeyData(periodTransactions, categories),
@@ -48,7 +67,7 @@ export default function Reports() {
   const hasAnyTransactions = transactions.length > 0;
   const hasPeriodData = periodTransactions.length > 0;
   const dailyAvg = hasPeriodData
-    ? totals.spending / Math.max(1, new Date().getDate())
+    ? totals.spending / Math.max(1, elapsedDaysInReportPeriod(period, periodKey))
     : 0;
 
   if (state.status !== 'ready') return null;
@@ -58,7 +77,9 @@ export default function Reports() {
       <header className="topbar">
         <div className="topbar__title-block">
           <h1 className="topbar__title">Reports</h1>
-          <span className="t-caption">Cashflow and category insights</span>
+          <span className="t-caption">
+            {periodLabel ? `Cashflow and category insights for ${periodLabel}` : 'Cashflow and category insights'}
+          </span>
         </div>
         <SegmentedControl value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Period" />
       </header>
@@ -86,8 +107,10 @@ export default function Reports() {
       <section className="dash-grid" style={{ alignItems: 'start' }}>
         <ReportsBreakdownCard
           spending={spending}
+          expenseTransactions={expenseTransactions}
           categories={categories}
           flowData={flowData}
+          resolvedTheme={resolvedTheme}
           view={view}
           onViewChange={setView}
           hasAnyTransactions={hasAnyTransactions}
@@ -163,13 +186,13 @@ function buildInsights({ categories, spending, totals }) {
 function Insight({ tone, title, body }) {
   const bg =
     tone === 'success'
-      ? 'var(--mint-wash)'
+      ? 'var(--accent-soft-bg)'
       : tone === 'warning'
         ? 'var(--warning-wash)'
         : 'var(--cream)';
   const ink =
     tone === 'success'
-      ? 'var(--forest)'
+      ? 'var(--accent-soft-ink)'
       : tone === 'warning'
         ? 'var(--warning-ink)'
         : 'var(--ink)';

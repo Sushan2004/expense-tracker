@@ -1,5 +1,5 @@
 import { DEFAULT_CATEGORY_COLOR, resolveCategoryColor } from './categoryAppearance.js';
-import { isoMonth } from './format.js';
+import { currentBudgetPeriodKey, isoMonth, matchesBudgetPeriod } from './format.js';
 
 export function categoryById(categories, id) {
   return categories.find((c) => c.id === id);
@@ -13,60 +13,123 @@ export function totalBalance(accounts) {
   return accounts.reduce((sum, a) => sum + a.balance, 0);
 }
 
-export function monthTotals(transactions, month = isoMonth()) {
+export function totalsForTransactions(transactions = []) {
   let income = 0;
   let spending = 0;
-  for (const t of transactions) {
-    if (!t.date.startsWith(month)) continue;
-    if (t.type === 'income' || t.amount > 0) income += t.amount;
-    else spending += Math.abs(t.amount);
+
+  for (const transaction of transactions) {
+    if (transaction.type === 'income' || transaction.amount > 0) income += transaction.amount;
+    else spending += Math.abs(transaction.amount);
   }
-  return { income, spending, savingsRate: income > 0 ? (income - spending) / income : 0 };
+
+  return {
+    income,
+    spending,
+    savingsRate: income > 0 ? (income - spending) / income : 0,
+  };
+}
+
+export function monthTotals(transactions, month = isoMonth()) {
+  return totalsForTransactions(transactions.filter((transaction) => transaction.date.startsWith(month)));
+}
+
+export function spendingByCategoryEntries(transactions = []) {
+  const map = new Map();
+  for (const transaction of transactions) {
+    if (transaction.type === 'income' || transaction.amount >= 0) continue;
+    const key = transaction.categoryId;
+    map.set(key, (map.get(key) || 0) + Math.abs(transaction.amount));
+  }
+
+  return [...map.entries()]
+    .map(([categoryId, amount]) => ({ categoryId, amount }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 export function spendingByCategory(transactions, month = isoMonth()) {
+  return spendingByCategoryEntries(
+    transactions.filter((transaction) => transaction.date.startsWith(month))
+  );
+}
+
+export function spendingByCategoryForBudgetPeriod(
+  transactions,
+  periodType = 'monthly',
+  periodKey = currentBudgetPeriodKey(periodType)
+) {
   const map = new Map();
-  for (const t of transactions) {
-    if (!t.date.startsWith(month)) continue;
-    if (t.type === 'income' || t.amount >= 0) continue;
-    const key = t.categoryId;
-    map.set(key, (map.get(key) || 0) + Math.abs(t.amount));
+  for (const transaction of transactions) {
+    if (!matchesBudgetPeriod(transaction.date, periodType, periodKey)) continue;
+    if (transaction.type === 'income' || transaction.amount >= 0) continue;
+    const key = transaction.categoryId;
+    map.set(key, (map.get(key) || 0) + Math.abs(transaction.amount));
   }
   return [...map.entries()]
     .map(([categoryId, amount]) => ({ categoryId, amount }))
     .sort((a, b) => b.amount - a.amount);
 }
 
-function budgetStatusForRatio(ratio) {
+function normalizeBudgetAlertThreshold(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0.8;
+  const ratio = numeric > 1 ? numeric / 100 : numeric;
+  return Math.max(0, Math.min(1, ratio || 0.8));
+}
+
+function budgetStatusForRatio(ratio, alertThreshold = 0.8) {
   if (ratio > 1) return 'over';
-  if (ratio >= 0.8) return 'warn';
+  if (ratio >= alertThreshold) return 'warn';
   return 'ok';
 }
 
-export function getBudgetCategoryData(budgets, transactions, categories, month = isoMonth()) {
-  const monthBudgets = budgets.filter((b) => b.month === month);
-  const spending = spendingByCategory(transactions, month);
+export function getBudgetableCategories(categories) {
+  if (!Array.isArray(categories)) return [];
+  return categories.filter((category) => category?.id && category.id !== 'cat-income');
+}
+
+export function getBudgetCategoryData(
+  budgets,
+  transactions,
+  categories,
+  periodType = 'monthly',
+  periodKey = currentBudgetPeriodKey(periodType)
+) {
+  const budgetableCategoryIds = new Set(getBudgetableCategories(categories).map((category) => category.id));
+  const periodBudgets = budgets.filter(
+    (budget) =>
+      budget.periodType === periodType
+      && budget.periodKey === periodKey
+      && budgetableCategoryIds.has(budget.categoryId)
+  );
+  const spending = spendingByCategoryForBudgetPeriod(transactions, periodType, periodKey);
   const spentMap = new Map(spending.map((item) => [item.categoryId, item.amount]));
   const statusOrder = { over: 0, warn: 1, ok: 2 };
 
-  return monthBudgets
+  return periodBudgets
     .map((budget) => {
       const category = categoryById(categories, budget.categoryId);
       const spent = spentMap.get(budget.categoryId) || 0;
       const ratio = budget.amount > 0 ? spent / budget.amount : 0;
       const remaining = budget.amount - spent;
-      const status = budgetStatusForRatio(ratio);
+      const alertThreshold = normalizeBudgetAlertThreshold(budget.alertThreshold);
+      const status = budgetStatusForRatio(ratio, alertThreshold);
+      const usedPercent = Math.round(ratio * 100);
 
       return {
         categoryId: budget.categoryId,
+        periodType: budget.periodType,
+        periodKey: budget.periodKey,
         name: category?.name || 'Other',
         icon: category?.icon || 'sparkle',
         colorVar: resolveCategoryColor(category?.colorVar || DEFAULT_CATEGORY_COLOR),
         budget: budget.amount,
         spent,
         ratio,
+        usedPercent,
         remaining,
         overBy: Math.max(0, spent - budget.amount),
+        alertThreshold,
+        thresholdPercent: Math.round(alertThreshold * 100),
         status,
       };
     })
@@ -79,7 +142,7 @@ export function getBudgetCategoryData(budgets, transactions, categories, month =
 }
 
 export function getBudgetSummary(budgets, transactions, categories, month = isoMonth()) {
-  const categoryData = getBudgetCategoryData(budgets, transactions, categories, month);
+  const categoryData = getBudgetCategoryData(budgets, transactions, categories, 'monthly', month);
   const totalBudget = categoryData.reduce((sum, item) => sum + item.budget, 0);
   const totalSpent = categoryData.reduce((sum, item) => sum + item.spent, 0);
   const remaining = totalBudget - totalSpent;
@@ -90,6 +153,31 @@ export function getBudgetSummary(budgets, transactions, categories, month = isoM
     remaining,
     usedRatio: totalBudget > 0 ? totalSpent / totalBudget : 0,
     remainingRatio: totalBudget > 0 ? Math.max(0, remaining) / totalBudget : 0,
+    overBudgetAmount: categoryData.reduce((sum, item) => sum + item.overBy, 0),
+    overBudgetCount: categoryData.filter((item) => item.status === 'over').length,
+    nearLimitCount: categoryData.filter((item) => item.status === 'warn').length,
+  };
+}
+
+export function getBudgetSummaryForPeriod(
+  budgets,
+  transactions,
+  categories,
+  periodType = 'monthly',
+  periodKey = currentBudgetPeriodKey(periodType)
+) {
+  const categoryData = getBudgetCategoryData(budgets, transactions, categories, periodType, periodKey);
+  const totalBudget = categoryData.reduce((sum, item) => sum + item.budget, 0);
+  const totalSpent = categoryData.reduce((sum, item) => sum + item.spent, 0);
+  const remaining = totalBudget - totalSpent;
+
+  return {
+    totalBudget,
+    totalSpent,
+    remaining,
+    usedRatio: totalBudget > 0 ? totalSpent / totalBudget : 0,
+    remainingRatio: totalBudget > 0 ? Math.max(0, remaining) / totalBudget : 0,
+    overBudgetAmount: categoryData.reduce((sum, item) => sum + item.overBy, 0),
     overBudgetCount: categoryData.filter((item) => item.status === 'over').length,
     nearLimitCount: categoryData.filter((item) => item.status === 'warn').length,
   };

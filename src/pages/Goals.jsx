@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import ColorPickerModal from '../components/ColorPickerModal.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import GoalTransferSelect from '../components/GoalTransferSelect.jsx';
 import Icon from '../components/Icon.jsx';
-import ProgressBar from '../components/ProgressBar.jsx';
 import { useAppState } from '../state/AppState.jsx';
 import {
   DEFAULT_CATEGORY_COLOR,
@@ -25,9 +25,10 @@ const FREQUENCY_LABEL = Object.fromEntries(FREQUENCY_OPTIONS.map((f) => [f.value
 
 export default function Goals() {
   const { state, dispatch } = useAppState();
-  const { incomeSources, goals, transactions, status } = state;
+  const { incomeSources, incomeEntries, goals, transactions, status } = state;
 
-  const [isAddingIncome, setIsAddingIncome] = useState(false);
+  const [sourceEditor, setSourceEditor] = useState(null);
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
 
   const checking = useMemo(
@@ -35,42 +36,91 @@ export default function Goals() {
     [transactions, goals]
   );
   const savedTotal = useMemo(() => totalSavings(goals), [goals]);
+  const sourcesById = useMemo(
+    () => Object.fromEntries(incomeSources.map((s) => [s.id, s])),
+    [incomeSources]
+  );
+  const sourceSummaries = useMemo(
+    () =>
+      incomeSources.map((source) => {
+        const entries = incomeEntries.filter((entry) => entry.sourceId === source.id);
+        return {
+          source,
+          entryCount: entries.length,
+          totalAmount: entries.reduce((sum, entry) => sum + entry.amount, 0),
+        };
+      }),
+    [incomeEntries, incomeSources]
+  );
 
   if (status !== 'ready') return null;
 
-  function handleAddIncome(payload) {
+  function handleAddSource(payload) {
     dispatch({
       type: 'incomeSource/add',
-      payload: {
-        id: uniqueId('inc'),
-        createdAt: todayIso(),
-        ...payload,
-      },
+      payload: { id: uniqueId('isrc'), createdAt: todayIso(), ...payload },
+    });
+    dispatch({
+      type: 'toast/show',
+      payload: { message: 'Income source added.', kind: 'success' },
+    });
+    setSourceEditor(null);
+  }
+
+  function handleUpdateSource(sourceId, payload) {
+    dispatch({
+      type: 'incomeSource/update',
+      payload: { id: sourceId, ...payload },
+    });
+    dispatch({
+      type: 'toast/show',
+      payload: { message: 'Income source updated.', kind: 'success' },
+    });
+    setSourceEditor(null);
+  }
+
+  function handleDeleteSource(id) {
+    if (incomeEntries.some((entry) => entry.sourceId === id)) {
+      dispatch({
+        type: 'toast/show',
+        payload: {
+          message: 'Source has income entries. Remove those first.',
+          kind: 'error',
+        },
+      });
+      return;
+    }
+    dispatch({ type: 'incomeSource/delete', payload: id });
+    dispatch({
+      type: 'toast/show',
+      payload: { message: 'Source removed.', kind: 'success' },
+    });
+  }
+
+  function handleAddEntry(payload) {
+    dispatch({
+      type: 'incomeEntry/add',
+      payload: { id: uniqueId('inc'), createdAt: todayIso(), ...payload },
     });
     dispatch({
       type: 'toast/show',
       payload: { message: 'Income added successfully.', kind: 'success' },
     });
-    setIsAddingIncome(false);
+    setIsAddingEntry(false);
   }
 
-  function handleDeleteIncome(id) {
-    dispatch({ type: 'incomeSource/delete', payload: id });
+  function handleDeleteEntry(id) {
+    dispatch({ type: 'incomeEntry/delete', payload: id });
     dispatch({
       type: 'toast/show',
-      payload: { message: 'Income source removed.', kind: 'success' },
+      payload: { message: 'Income entry removed.', kind: 'success' },
     });
   }
 
   function handleAddGoal(payload) {
     dispatch({
       type: 'goal/add',
-      payload: {
-        id: uniqueId('goal'),
-        current: 0,
-        createdAt: todayIso(),
-        ...payload,
-      },
+      payload: { id: uniqueId('goal'), current: 0, createdAt: todayIso(), ...payload },
     });
     dispatch({
       type: 'toast/show',
@@ -88,12 +138,30 @@ export default function Goals() {
   }
 
   function handleTransfer({ goalId, amount }) {
-    dispatch({ type: 'goal/transfer', payload: { goalId, amount } });
     const goal = goals.find((g) => g.id === goalId);
+    const numericAmount = Number(amount);
+
+    if (
+      !goal
+      || !Number.isFinite(numericAmount)
+      || numericAmount <= 0
+      || numericAmount > Math.max(0, checking)
+    ) {
+      dispatch({
+        type: 'toast/show',
+        payload: {
+          message: 'Transfer amount is no longer valid.',
+          kind: 'error',
+        },
+      });
+      return;
+    }
+
+    dispatch({ type: 'goal/transfer', payload: { goalId, amount: numericAmount } });
     dispatch({
       type: 'toast/show',
       payload: {
-        message: `Moved ${formatCurrency(amount)} to ${goal?.name || 'savings'}.`,
+        message: `Moved ${formatCurrency(numericAmount)} to ${goal.name}.`,
         kind: 'success',
       },
     });
@@ -105,7 +173,7 @@ export default function Goals() {
         <div className="topbar__title-block">
           <h1 className="topbar__title">Income &amp; Savings</h1>
           <span className="t-caption">
-            Track income sources, your checking balance, and progress on savings goals.
+            Manage income sources, log income entries, and track savings goals.
           </span>
         </div>
       </header>
@@ -115,8 +183,8 @@ export default function Goals() {
           <div className="is-stat__label">Checking balance</div>
           <div className="is-stat__value tnum">{formatCurrency(checking)}</div>
           <div className="is-stat__sub">
-            From {incomeSources.length} income {incomeSources.length === 1 ? 'source' : 'sources'}
-            {goals.length > 0 ? ` · ${formatCurrency(savedTotal)} moved to savings` : ''}
+            {incomeEntries.length} income {incomeEntries.length === 1 ? 'entry' : 'entries'}
+            {goals.length > 0 ? ` / ${formatCurrency(savedTotal)} moved to savings` : ''}
           </div>
         </div>
         <div className="is-stat is-stat--savings">
@@ -131,36 +199,108 @@ export default function Goals() {
       <section className="card card--lg is-section">
         <div className="is-section__head">
           <div>
-            <h2 className="t-h2">Income</h2>
-            <span className="t-caption">All income flows into your checking balance first.</span>
+            <h2 className="t-h2">Income sources</h2>
+            <span className="t-caption">
+              Reusable labels for the places your money comes from.
+            </span>
           </div>
           <button
             type="button"
             className="btn btn--secondary"
-            onClick={() => setIsAddingIncome((value) => !value)}
+            onClick={() =>
+              setSourceEditor((value) => (value?.type === 'add' ? null : { type: 'add' }))
+            }
           >
-            <Icon name={isAddingIncome ? 'minus' : 'plus'} size={14} strokeWidth={2} />
-            {isAddingIncome ? 'Close' : 'Add income'}
+            <Icon name={sourceEditor ? 'minus' : 'plus'} size={14} strokeWidth={2} />
+            {sourceEditor ? 'Close' : 'Add source'}
           </button>
         </div>
 
-        {isAddingIncome ? (
-          <IncomeForm
-            goals={goals}
-            onCancel={() => setIsAddingIncome(false)}
-            onSave={handleAddIncome}
+        {sourceEditor ? (
+          <SourceForm
+            key={sourceEditor.type === 'edit' ? sourceEditor.sourceId : 'add-source'}
+            sources={incomeSources}
+            source={sourceEditor.type === 'edit' ? sourcesById[sourceEditor.sourceId] : null}
+            onCancel={() => setSourceEditor(null)}
+            onSave={(payload) => {
+              if (sourceEditor.type === 'edit') {
+                handleUpdateSource(sourceEditor.sourceId, payload);
+                return;
+              }
+
+              handleAddSource(payload);
+            }}
           />
         ) : null}
 
         {incomeSources.length === 0 ? (
           <EmptyState
             title="No income sources yet"
-            copy="Add a paycheck, side gig, or any deposit to start growing your checking balance."
+            copy="Create your first income source to add income faster."
+          />
+        ) : (
+          <div className="is-source-cards">
+            {sourceSummaries.map(({ source, entryCount, totalAmount }) => (
+              <SourceCard
+                key={source.id}
+                source={source}
+                entryCount={entryCount}
+                totalAmount={totalAmount}
+                onEdit={() => setSourceEditor({ type: 'edit', sourceId: source.id })}
+                onDelete={handleDeleteSource}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="card card--lg is-section">
+        <div className="is-section__head">
+          <div>
+            <h2 className="t-h2">Income entries</h2>
+            <span className="t-caption">
+              Each entry deposits money into checking and shows up in transactions.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={() => setIsAddingEntry((value) => !value)}
+            disabled={incomeSources.length === 0}
+            title={incomeSources.length === 0 ? 'Create an income source first' : undefined}
+          >
+            <Icon name={isAddingEntry ? 'minus' : 'plus'} size={14} strokeWidth={2} />
+            {isAddingEntry ? 'Close' : 'Add income'}
+          </button>
+        </div>
+
+        {isAddingEntry && incomeSources.length > 0 ? (
+          <EntryForm
+            sources={incomeSources}
+            goals={goals}
+            onCancel={() => setIsAddingEntry(false)}
+            onSave={handleAddEntry}
+          />
+        ) : null}
+
+        {incomeEntries.length === 0 ? (
+          <EmptyState
+            title="No income yet"
+            copy={
+              incomeSources.length === 0
+                ? 'Create an income source first, then add your first entry.'
+                : 'Add your first income entry to start tracking deposits.'
+            }
           />
         ) : (
           <div className="is-income-list">
-            {incomeSources.map((source) => (
-              <IncomeRow key={source.id} source={source} onDelete={handleDeleteIncome} />
+            {incomeEntries.map((entry) => (
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                source={sourcesById[entry.sourceId]}
+                onDelete={handleDeleteEntry}
+              />
             ))}
           </div>
         )}
@@ -175,12 +315,7 @@ export default function Goals() {
             </span>
           </div>
         </div>
-
-        <TransferForm
-          goals={goals}
-          available={checking}
-          onTransfer={handleTransfer}
-        />
+        <TransferForm goals={goals} available={checking} onTransfer={handleTransfer} />
       </section>
 
       <section className="card card--lg is-section">
@@ -228,12 +363,182 @@ export default function Goals() {
   );
 }
 
-/* ----------------------------- Income form ------------------------------ */
+/* ----------------------------- Source form ------------------------------ */
 
-function IncomeForm({ goals, onCancel, onSave }) {
-  const [name, setName] = useState('');
+function SourceForm({ sources, source, onCancel, onSave }) {
+  const [name, setName] = useState(source?.name || '');
+  const [color, setColor] = useState(source?.color || DEFAULT_CATEGORY_COLOR);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  const trimmedName = name.trim();
+  const duplicate = useMemo(
+    () =>
+      sources.some(
+        (s) =>
+          s.id !== source?.id
+          && s.name.toLowerCase() === trimmedName.toLowerCase()
+      ),
+    [source?.id, sources, trimmedName]
+  );
+  const canSave = trimmedName.length > 0 && !duplicate;
+
+  function handleSave() {
+    if (!canSave) return;
+    onSave({ name: trimmedName, color: normalizeCategoryColor(color) });
+  }
+
+  return (
+    <div className="is-form">
+      <div className="is-form-grid">
+        <label className="field">
+          <span className="field__label">Source name</span>
+          <input
+            className={`input${trimmedName && duplicate ? ' input--error' : ''}`}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Front Desk, Salary, Freelance..."
+            maxLength={40}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                handleSave();
+              }
+            }}
+          />
+          {trimmedName && duplicate ? (
+            <span className="field__error">A source with this name already exists.</span>
+          ) : null}
+        </label>
+      </div>
+
+      <button
+        type="button"
+        className="category-create__chooser category-create__chooser--full"
+        onClick={() => setColorPickerOpen(true)}
+      >
+        <span
+          className="category-create__chooser-swatch category-create__chooser-swatch--solid"
+          style={{ background: color }}
+          aria-hidden="true"
+        />
+        <span className="category-create__chooser-meta">
+          <span className="category-create__chooser-label">Color (optional)</span>
+          <span className="category-create__chooser-value tnum">{color}</span>
+        </span>
+        <span className="category-create__chooser-cta">Change</span>
+      </button>
+
+      <div className="is-form__actions">
+        <button type="button" className="btn btn--secondary" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn btn--primary" disabled={!canSave} onClick={handleSave}>
+          {source ? 'Save changes' : 'Save source'}
+        </button>
+      </div>
+
+      <ColorPickerModal
+        open={colorPickerOpen}
+        value={color}
+        onClose={() => setColorPickerOpen(false)}
+        onSave={(hex) => {
+          setColor(normalizeCategoryColor(hex));
+          setColorPickerOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/* ----------------------------- Source chip ------------------------------ */
+
+function SourceChip({ source, inUse, onDelete }) {
+  return (
+    <div
+      className="is-source-chip"
+      style={{
+        borderColor: colorWithAlpha(source.color, 0.45),
+        background: colorWithAlpha(source.color, 0.08),
+      }}
+    >
+      <span className="is-source-chip__dot" style={{ background: source.color }} aria-hidden="true" />
+      <span className="is-source-chip__name">{source.name}</span>
+      <button
+        type="button"
+        className="is-source-chip__delete"
+        onClick={() => onDelete(source.id)}
+        aria-label={`Remove ${source.name}`}
+        title={inUse ? 'Has income entries — remove those first' : 'Remove source'}
+        disabled={inUse}
+      >
+        <Icon name="x" size={12} strokeWidth={2} />
+      </button>
+    </div>
+  );
+}
+
+function SourceCard({ source, entryCount, totalAmount, onEdit, onDelete }) {
+  const inUse = entryCount > 0;
+
+  return (
+    <article
+      className="is-source-card"
+      style={{ borderColor: colorWithAlpha(source.color, 0.28) }}
+    >
+      <div className="is-source-card__identity">
+        <span className="is-source-chip__dot" style={{ background: source.color }} aria-hidden="true" />
+        <div className="is-source-card__copy">
+          <div className="is-source-card__name">{source.name}</div>
+          <div className="is-source-card__sub">
+            {entryCount > 0
+              ? `${entryCount} ${entryCount === 1 ? 'income entry' : 'income entries'}`
+              : 'No income entries yet'}
+          </div>
+        </div>
+      </div>
+
+      <div className="is-source-card__stats">
+        <div className="is-source-card__stat">
+          <span className="is-source-card__stat-label">Entries</span>
+          <span className="is-source-card__stat-value tnum">{entryCount}</span>
+        </div>
+        <div className="is-source-card__stat">
+          <span className="is-source-card__stat-label">Total received</span>
+          <span className="is-source-card__stat-value tnum">{formatCurrency(totalAmount)}</span>
+        </div>
+      </div>
+
+      <div className="is-source-card__actions">
+        <button
+          type="button"
+          className="btn btn--secondary is-source-card__btn"
+          onClick={onEdit}
+          aria-label={`Edit ${source.name}`}
+        >
+          <Icon name="edit" size={13} strokeWidth={1.8} />
+          Edit
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary is-source-card__btn is-source-card__btn--danger"
+          onClick={() => onDelete(source.id)}
+          aria-label={`Remove ${source.name}`}
+          title={inUse ? 'Has income entries - remove those first' : 'Remove source'}
+          disabled={inUse}
+        >
+          <Icon name="trash" size={13} strokeWidth={1.8} />
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ----------------------------- Entry form ------------------------------- */
+
+function EntryForm({ sources, goals, onCancel, onSave }) {
+  const [sourceId, setSourceId] = useState(sources[0]?.id || '');
   const [amountStr, setAmountStr] = useState('');
-  const [frequency, setFrequency] = useState('monthly');
+  const [date, setDate] = useState(todayIso());
+  const [frequency, setFrequency] = useState('one-time');
   const [note, setNote] = useState('');
   const [savePercentStr, setSavePercentStr] = useState('0');
   const [splitState, setSplitState] = useState(() =>
@@ -250,8 +555,7 @@ function IncomeForm({ goals, onCancel, onSave }) {
     [goals, splitState]
   );
   const splitValid = goals.length === 0 || savePercent === 0 || Math.round(splitTotal) === 100;
-  const trimmedName = name.trim();
-  const canSave = trimmedName.length > 0 && amount > 0 && splitValid;
+  const canSave = !!sourceId && amount > 0 && splitValid;
 
   function handleSplitChange(goalId, value) {
     const numeric = Math.max(0, Math.min(100, Number(value) || 0));
@@ -266,12 +570,13 @@ function IncomeForm({ goals, onCancel, onSave }) {
           .filter((entry) => entry.percent > 0)
       : [];
     onSave({
-      name: trimmedName,
+      sourceId,
       amount,
       frequency,
       note: note.trim(),
       savePercent,
       splitConfig,
+      date,
     });
   }
 
@@ -279,17 +584,19 @@ function IncomeForm({ goals, onCancel, onSave }) {
     <div className="is-form">
       <div className="is-form-grid">
         <label className="field">
-          <span className="field__label">Source name</span>
-          <input
-            className="input"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Salary, freelance, side gig..."
-            maxLength={40}
-          />
+          <span className="field__label">Income source</span>
+          <select
+            className="select"
+            value={sourceId}
+            onChange={(event) => setSourceId(event.target.value)}
+          >
+            {sources.map((source) => (
+              <option key={source.id} value={source.id}>{source.name}</option>
+            ))}
+          </select>
         </label>
         <label className="field">
-          <span className="field__label">Amount</span>
+          <span className="field__label">Amount received</span>
           <input
             type="number"
             className="input tnum"
@@ -298,6 +605,15 @@ function IncomeForm({ goals, onCancel, onSave }) {
             placeholder="0.00"
             min="0"
             step="0.01"
+          />
+        </label>
+        <label className="field">
+          <span className="field__label">Date</span>
+          <input
+            type="date"
+            className="input"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
           />
         </label>
         <label className="field">
@@ -344,7 +660,7 @@ function IncomeForm({ goals, onCancel, onSave }) {
           {goals.length === 0
             ? 'Create a savings goal first to enable percentage saving.'
             : amount > 0
-              ? `${formatCurrency(savedAmount)} goes to savings · ${formatCurrency(checkingPortion)} stays in checking.`
+              ? `${formatCurrency(savedAmount)} goes to savings / ${formatCurrency(checkingPortion)} stays in checking.`
               : 'Enter an amount to see how the split works.'}
         </div>
       </div>
@@ -396,32 +712,38 @@ function IncomeForm({ goals, onCancel, onSave }) {
   );
 }
 
-/* ----------------------------- Income row ------------------------------- */
+/* ----------------------------- Entry row -------------------------------- */
 
-function IncomeRow({ source, onDelete }) {
-  const savedAmount = (source.amount * source.savePercent) / 100;
+function EntryRow({ entry, source, onDelete }) {
+  const savedAmount = (entry.amount * entry.savePercent) / 100;
+  const sourceName = source?.name || 'Unknown source';
+  const sourceColor = source?.color || DEFAULT_CATEGORY_COLOR;
 
   return (
     <div className="is-income-row">
       <div className="is-income-row__main">
         <div className="is-income-row__title">
-          {source.name}
-          <span className="is-income-row__badge">{FREQUENCY_LABEL[source.frequency] || 'One-time'}</span>
+          <span className="is-source-chip__dot" style={{ background: sourceColor }} aria-hidden="true" />
+          {sourceName}
+          <span className="is-income-row__badge">{FREQUENCY_LABEL[entry.frequency] || 'One-time'}</span>
         </div>
-        {source.note ? <div className="t-caption">{source.note}</div> : null}
-        {source.savePercent > 0 ? (
+        <div className="t-caption">
+          {fullDate(entry.date)}
+          {entry.note ? ` / ${entry.note}` : ''}
+        </div>
+        {entry.savePercent > 0 ? (
           <div className="t-caption is-income-row__split">
-            {source.savePercent}% saved ({formatCurrency(savedAmount)})
+            {entry.savePercent}% saved ({formatCurrency(savedAmount)})
           </div>
         ) : null}
       </div>
-      <div className="is-income-row__amount tnum">+{formatCurrency(source.amount)}</div>
+      <div className="is-income-row__amount tnum">+{formatCurrency(entry.amount)}</div>
       <button
         type="button"
         className="is-income-row__delete"
-        onClick={() => onDelete(source.id)}
-        aria-label={`Remove ${source.name}`}
-        title="Remove income source"
+        onClick={() => onDelete(entry.id)}
+        aria-label={`Remove income from ${sourceName}`}
+        title="Remove income entry"
       >
         <Icon name="trash" size={14} strokeWidth={1.6} />
       </button>
@@ -435,47 +757,58 @@ function TransferForm({ goals, available, onTransfer }) {
   const [goalId, setGoalId] = useState(goals[0]?.id || '');
   const [amountStr, setAmountStr] = useState('');
 
-  const amount = Number(amountStr) || 0;
-  const noGoals = goals.length === 0;
-  const noChecking = available <= 0;
-  const overAvailable = amount > available;
-  const valid = !noGoals && !noChecking && amount > 0 && !overAvailable && goals.some((g) => g.id === goalId);
+  useEffect(() => {
+    if (goals.length === 0) {
+      setGoalId('');
+      return;
+    }
 
-  function handleSubmit() {
-    if (!valid) return;
-    onTransfer({ goalId, amount });
+    if (!goals.some((goal) => goal.id === goalId)) {
+      setGoalId(goals[0].id);
+    }
+  }, [goalId, goals]);
+
+  const availableBalance = Math.max(0, Number(available) || 0);
+  const parsedAmount = Number.parseFloat(amountStr);
+  const amount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+  const selectedGoal = goals.find((goal) => goal.id === goalId) || null;
+  const noGoals = goals.length === 0;
+  const noChecking = availableBalance <= 0;
+  const hasAmount = amountStr.trim().length > 0 && amount > 0;
+  const overAvailable = amount > availableBalance;
+  const valid = !noGoals && !noChecking && Boolean(selectedGoal) && hasAmount && !overAvailable;
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (!valid || !selectedGoal) return;
+    onTransfer({ goalId: selectedGoal.id, amount });
     setAmountStr('');
   }
 
   if (noGoals) {
     return (
       <div className="is-transfer is-transfer--disabled">
-        Create a savings goal first, then come back to move money over.
+        Create a savings goal first before transferring money.
       </div>
     );
   }
 
   return (
-    <div className="is-transfer">
-      <label className="field">
+    <form className="is-transfer" onSubmit={handleSubmit}>
+      <div className="field is-transfer__field">
         <span className="field__label">To savings goal</span>
-        <select
-          className="select"
+        <GoalTransferSelect
+          goals={goals}
           value={goalId}
-          onChange={(event) => setGoalId(event.target.value)}
-        >
-          {goals.map((goal) => (
-            <option key={goal.id} value={goal.id}>
-              {goal.name} · {formatCurrency(goal.current)} of {formatCurrency(goal.target)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
+          onChange={setGoalId}
+        />
+        <span className="field__hint is-transfer__hint-spacer" aria-hidden="true"> </span>
+      </div>
+      <label className="field is-transfer__field">
         <span className="field__label">Amount</span>
         <input
           type="number"
-          className={`input tnum${overAvailable ? ' input--error' : ''}`}
+          className={`input tnum is-transfer__amount${overAvailable ? ' input--error' : ''}`}
           value={amountStr}
           onChange={(event) => setAmountStr(event.target.value)}
           placeholder="0.00"
@@ -484,25 +817,30 @@ function TransferForm({ goals, available, onTransfer }) {
         />
         {overAvailable ? (
           <span className="field__error">
-            Amount exceeds available checking ({formatCurrency(Math.max(0, available))}).
+            Amount exceeds available checking ({formatCurrency(availableBalance)}).
           </span>
         ) : noChecking ? (
           <span className="field__hint">Add income to checking before transferring.</span>
         ) : (
           <span className="field__hint">
-            Available: <span className="tnum">{formatCurrency(Math.max(0, available))}</span>
+            Available: <span className="tnum">{formatCurrency(availableBalance)}</span>
           </span>
         )}
       </label>
-      <button
-        type="button"
-        className="btn btn--primary is-transfer__submit"
-        onClick={handleSubmit}
-        disabled={!valid}
-      >
-        Transfer
-      </button>
-    </div>
+      <div className="field is-transfer__field is-transfer__field--action">
+        <span className="field__label is-transfer__label-spacer" aria-hidden="true">Transfer</span>
+        <div className="is-transfer__action">
+          <button
+            type="submit"
+            className="btn btn--primary is-transfer__submit"
+            disabled={!valid}
+          >
+            Transfer
+          </button>
+        </div>
+        <span className="field__hint is-transfer__hint-spacer" aria-hidden="true"> </span>
+      </div>
+    </form>
   );
 }
 
@@ -663,6 +1001,14 @@ function GoalCard({ goal, onDelete }) {
   );
 }
 
+/* ----------------------------- PropTypes -------------------------------- */
+
+const sourceShape = PropTypes.shape({
+  id: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  color: PropTypes.string.isRequired,
+});
+
 const goalShape = PropTypes.shape({
   id: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
@@ -672,22 +1018,46 @@ const goalShape = PropTypes.shape({
   color: PropTypes.string.isRequired,
 });
 
-IncomeForm.propTypes = {
+SourceForm.propTypes = {
+  sources: PropTypes.arrayOf(sourceShape).isRequired,
+  source: sourceShape,
+  onCancel: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+};
+
+SourceChip.propTypes = {
+  source: sourceShape.isRequired,
+  inUse: PropTypes.bool,
+  onDelete: PropTypes.func.isRequired,
+};
+
+SourceCard.propTypes = {
+  source: sourceShape.isRequired,
+  entryCount: PropTypes.number.isRequired,
+  totalAmount: PropTypes.number.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+};
+
+EntryForm.propTypes = {
+  sources: PropTypes.arrayOf(sourceShape).isRequired,
   goals: PropTypes.arrayOf(goalShape).isRequired,
   onCancel: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
 };
 
-IncomeRow.propTypes = {
-  source: PropTypes.shape({
+EntryRow.propTypes = {
+  entry: PropTypes.shape({
     id: PropTypes.string.isRequired,
-    name: PropTypes.string.isRequired,
+    sourceId: PropTypes.string,
     amount: PropTypes.number.isRequired,
     frequency: PropTypes.string.isRequired,
     note: PropTypes.string,
     savePercent: PropTypes.number.isRequired,
     splitConfig: PropTypes.array,
+    date: PropTypes.string.isRequired,
   }).isRequired,
+  source: sourceShape,
   onDelete: PropTypes.func.isRequired,
 };
 
