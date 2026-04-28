@@ -1,6 +1,6 @@
-import { useAppState } from '../state/AppState.jsx';
-import useLocalStorage from '../hooks/useLocalStorage.js';
 import Icon from '../components/Icon.jsx';
+import useLocalStorage from '../hooks/useLocalStorage.js';
+import { clearStoredAppState, useAppState } from '../state/AppState.jsx';
 
 const GROUPS = [
   {
@@ -13,7 +13,7 @@ const GROUPS = [
   {
     title: 'Preferences',
     rows: [
-      { name: 'Currency', hint: 'USD · $ · 2 decimals', icon: 'wallet' },
+      { name: 'Currency', hint: 'USD - $ - 2 decimals', icon: 'wallet' },
       { name: 'Week starts on', hint: 'Monday', icon: 'calendar' },
     ],
   },
@@ -30,6 +30,7 @@ export default function Settings() {
   const { state } = useAppState();
   const [reduceMotion, setReduceMotion] = useLocalStorage('et:reduce-motion', false);
   const [tightLists, setTightLists] = useLocalStorage('et:tight-lists', false);
+  const hasTransactions = state.transactions.length > 0;
 
   if (state.status !== 'ready') return null;
 
@@ -38,7 +39,7 @@ export default function Settings() {
       <header className="topbar">
         <div className="topbar__title-block">
           <h1 className="topbar__title">Settings</h1>
-          <span className="t-caption">Signed in as {state.user?.email}</span>
+          <span className="t-caption">{state.user?.email || 'No profile connected'}</span>
         </div>
       </header>
 
@@ -51,11 +52,17 @@ export default function Settings() {
                 {group.rows.map((row) => (
                   <div key={row.name} className="settings-row">
                     <span className="row" style={{ gap: 12 }}>
-                      <span style={{
-                        width: 32, height: 32, borderRadius: 9,
-                        background: 'var(--mint-wash)', color: 'var(--forest)',
-                        display: 'grid', placeItems: 'center',
-                      }}>
+                      <span
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 9,
+                          background: 'var(--mint-wash)',
+                          color: 'var(--forest)',
+                          display: 'grid',
+                          placeItems: 'center',
+                        }}
+                      >
                         <Icon name={row.icon} size={15} />
                       </span>
                       <span>
@@ -112,21 +119,32 @@ export default function Settings() {
               <div className="settings-row">
                 <span>
                   <div className="settings-row__name">Export data</div>
-                  <div className="settings-row__hint">Download a CSV of all transactions</div>
+                  <div className="settings-row__hint">
+                    {hasTransactions
+                      ? 'Download a CSV of all transactions'
+                      : 'Available after you add transactions'}
+                  </div>
                 </span>
-                <button type="button" className="btn btn--secondary">
+                <button type="button" className="btn btn--secondary" disabled={!hasTransactions}>
                   <Icon name="download" size={14} />
                   Export
                 </button>
               </div>
               <div className="settings-row">
                 <span>
-                  <div className="settings-row__name">Reset to seed data</div>
-                  <div className="settings-row__hint">Restores demo transactions</div>
+                  <div className="settings-row__name">Start fresh</div>
+                  <div className="settings-row__hint">Clear local demo data and return to an empty workspace</div>
                 </span>
-                <button type="button" className="btn btn--secondary" onClick={() => window.location.reload()}>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => {
+                    clearStoredAppState();
+                    window.location.reload();
+                  }}
+                >
                   <Icon name="refresh" size={14} />
-                  Reset
+                  Clear data
                 </button>
               </div>
             </div>

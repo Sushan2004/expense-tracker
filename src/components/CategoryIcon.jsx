@@ -1,23 +1,21 @@
 import PropTypes from 'prop-types';
-import Icon from './Icon.jsx';
+import { CATEGORY_ICON_COMPONENTS, DEFAULT_CATEGORY_ICON, normalizeCategoryIcon } from '../utils/categoryAppearance.js';
 
-const CATEGORY_ICON = {
-  'cat-food': 'coffee',
-  'cat-transport': 'car',
-  'cat-shopping': 'bag',
-  'cat-home': 'home',
-  'cat-subs': 'repeat',
-  'cat-fun': 'film',
-  'cat-health': 'heart',
-  'cat-other': 'sparkle',
-};
+export default function CategoryIcon({ category, categoryId, size = 16 }) {
+  const fallbackId = categoryId || category?.id;
+  const iconName = normalizeCategoryIcon(category?.icon || fallbackId || DEFAULT_CATEGORY_ICON);
+  const IconComponent = CATEGORY_ICON_COMPONENTS[iconName] || CATEGORY_ICON_COMPONENTS[DEFAULT_CATEGORY_ICON];
 
-export default function CategoryIcon({ categoryId, size = 16 }) {
-  const name = CATEGORY_ICON[categoryId] || 'sparkle';
-  return <Icon name={name} size={size} strokeWidth={1.6} />;
+  if (!IconComponent) return null;
+
+  return <IconComponent size={size} aria-hidden="true" />;
 }
 
 CategoryIcon.propTypes = {
+  category: PropTypes.shape({
+    id: PropTypes.string,
+    icon: PropTypes.string,
+  }),
   categoryId: PropTypes.string,
   size: PropTypes.number,
 };

@@ -15,7 +15,7 @@ export default function About() {
         <span className="t-eyebrow">About</span>
         <h1 className="t-h1">A calm place for your numbers.</h1>
         <p>
-          Express Tracker is a personal expense tracker with a mint-green visual identity.
+          Expense Tracker is a personal expense tracker with a mint-green visual identity.
           The product is built on a few principles: clarity over decoration, speed over density,
           and trust over playfulness. Every screen has one obvious primary action.
         </p>
@@ -25,7 +25,7 @@ export default function About() {
         <div className="card card--lg">
           <div className="t-eyebrow" style={{ marginBottom: 14 }}>The mission</div>
           <p style={{ marginBottom: 12 }}>
-            Most finance apps drown the user in features. Express Tracker is the opposite:
+            Most finance apps drown the user in features. Expense Tracker is the opposite:
             you should feel in control of your money within a few seconds of opening it.
           </p>
           <p style={{ color: 'var(--text-2)' }}>

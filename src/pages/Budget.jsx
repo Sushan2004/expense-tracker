@@ -4,6 +4,7 @@ import CategoryIcon from '../components/CategoryIcon.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Icon from '../components/Icon.jsx';
 import ProgressBar from '../components/ProgressBar.jsx';
+import { getCategoryAccentStyle } from '../utils/categoryAppearance.js';
 import { formatCurrency, isoMonth } from '../utils/format.js';
 import {
   getBudgetBreakdown,
@@ -146,7 +147,7 @@ function BudgetSpentCard({ summary, breakdown }) {
                 className="budget-breakdown-bar__segment"
                 style={{
                   flex: `${Math.max(item.share, 0.04)} 1 0`,
-                  background: `var(${item.colorVar})`,
+                  background: item.colorVar,
                 }}
               />
             ))}
@@ -156,7 +157,7 @@ function BudgetSpentCard({ summary, breakdown }) {
               <span className="budget-breakdown-legend__item" key={item.categoryId}>
                 <span
                   className="budget-breakdown-legend__dot"
-                  style={{ background: `var(${item.colorVar})` }}
+                  style={{ background: item.colorVar }}
                   aria-hidden="true"
                 />
                 {item.name}
@@ -198,8 +199,8 @@ function BudgetCategoryTile({ item }) {
     <article className={`budget-category-tile budget-category-tile--${item.status}`}>
       <div className="budget-category-tile__head">
         <span className="budget-category-tile__title row" style={{ gap: 10 }}>
-          <span className="budget-category-tile__icon" aria-hidden="true">
-            <CategoryIcon categoryId={item.categoryId} size={15} />
+          <span className="budget-category-tile__icon" style={getCategoryAccentStyle(item.colorVar, 0.14)} aria-hidden="true">
+            <CategoryIcon category={item} categoryId={item.categoryId} size={15} />
           </span>
           <span className="budget-category-tile__name">{item.name}</span>
         </span>

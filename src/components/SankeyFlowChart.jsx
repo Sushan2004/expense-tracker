@@ -36,6 +36,7 @@ function colorForNode(node, ramp) {
   if (node.kind === 'income') return PALETTE.forest;
   if (node.kind === 'pool') return PALETTE.emeraldDark;
   if (node.kind === 'savings') return PALETTE.emeraldDark;
+  if (node.color) return node.color;
   return ramp[0];
 }
 
@@ -184,7 +185,7 @@ export default function SankeyFlowChart({ data, height = 520, framed = true, cla
 SankeyFlowChart.propTypes = {
   data: PropTypes.shape({
     nodes: PropTypes.arrayOf(
-      PropTypes.shape({ name: PropTypes.string.isRequired, kind: PropTypes.string })
+      PropTypes.shape({ name: PropTypes.string.isRequired, kind: PropTypes.string, color: PropTypes.string })
     ).isRequired,
     links: PropTypes.arrayOf(
       PropTypes.shape({

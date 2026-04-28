@@ -4,6 +4,12 @@ import Icon from '../components/Icon.jsx';
 
 const initialForm = { name: '', email: '', password: '', confirm: '' };
 
+const PREVIEW_ITEMS = [
+  { icon: 'list', title: 'Track every entry', body: 'Capture expenses and income in one calm place.', badge: 'History' },
+  { icon: 'bars', title: 'See reports clearly', body: 'Charts stay clean and focused when real data arrives.', badge: 'Reports' },
+  { icon: 'clock', title: 'Plan with budgets', body: 'Built-in categories help you organize spending from day one.', badge: 'Budget' },
+];
+
 export default function Signup() {
   const [form, setForm] = useState(initialForm);
   const [touched, setTouched] = useState({});
@@ -15,21 +21,24 @@ export default function Signup() {
   const isValid = Object.keys(errors).length === 0;
 
   function update(field) {
-    return (e) => setForm({ ...form, [field]: e.target.value });
+    return (event) => setForm({ ...form, [field]: event.target.value });
   }
+
   function blur(field) {
     return () => setTouched({ ...touched, [field]: true });
   }
+
   function show(field) {
     return touched[field] && errors[field];
   }
 
-  async function onSubmit(e) {
-    e.preventDefault();
+  async function onSubmit(event) {
+    event.preventDefault();
     setTouched({ name: true, email: true, password: true, confirm: true });
     if (!isValid) return;
+
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((resolve) => setTimeout(resolve, 700));
     setSubmitting(false);
     setSuccess(true);
     setTimeout(() => navigate('/'), 900);
@@ -44,7 +53,7 @@ export default function Signup() {
               <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="#A7F3D0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          <span className="auth__brand-name">Express Tracker</span>
+          <span className="auth__brand-name">Expense Tracker</span>
         </div>
 
         <h1 className="auth__headline">Take quiet control of your money.</h1>
@@ -55,15 +64,22 @@ export default function Signup() {
         {success ? (
           <div className="card card--lg" role="status" aria-live="polite">
             <div className="row" style={{ gap: 12 }}>
-              <span style={{
-                width: 36, height: 36, borderRadius: 12, background: 'var(--mint-wash)',
-                color: 'var(--forest)', display: 'grid', placeItems: 'center',
-              }}>
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 12,
+                  background: 'var(--mint-wash)',
+                  color: 'var(--forest)',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
                 <Icon name="check" size={18} strokeWidth={2.4} />
               </span>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 500 }}>Welcome aboard, {form.name.split(' ')[0]}.</div>
-                <div className="t-caption">Taking you to your dashboard…</div>
+                <div className="t-caption">Taking you to your dashboard...</div>
               </div>
             </div>
           </div>
@@ -126,7 +142,7 @@ export default function Signup() {
               disabled={submitting}
               style={{ marginTop: 8 }}
             >
-              {submitting ? 'Creating your account…' : 'Create account'}
+              {submitting ? 'Creating your account...' : 'Create account'}
             </button>
             <p className="auth__alt-link">
               Already have an account? <Link to="/">Continue to dashboard</Link>
@@ -139,36 +155,37 @@ export default function Signup() {
         <h2>Money you can read at a glance.</h2>
         <p>Mint-green clarity over busy charts. Your numbers, calmly arranged.</p>
         <div className="auth__preview">
-          <div className="auth__preview-row">
-            <span style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(167,243,208,0.15)', display: 'grid', placeItems: 'center' }}>
-              <Icon name="coffee" size={16} stroke="#A7F3D0" />
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>Blue Bottle Coffee</div>
-              <div style={{ fontSize: 11, color: 'rgba(167,243,208,0.65)' }}>Food · Today</div>
+          {PREVIEW_ITEMS.map((item) => (
+            <div key={item.title} className="auth__preview-row">
+              <span
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 9,
+                  background: 'rgba(167,243,208,0.15)',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <Icon name={item.icon} size={16} stroke="#A7F3D0" />
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{item.title}</div>
+                <div style={{ fontSize: 11, color: 'rgba(167,243,208,0.65)' }}>{item.body}</div>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--mint)',
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  background: 'rgba(167,243,208,0.12)',
+                }}
+              >
+                {item.badge}
+              </div>
             </div>
-            <div className="tnum" style={{ fontSize: 13 }}>−$6.50</div>
-          </div>
-          <div className="auth__preview-row">
-            <span style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(167,243,208,0.15)', display: 'grid', placeItems: 'center' }}>
-              <Icon name="arrowDown" size={16} stroke="#A7F3D0" />
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>Acme payroll</div>
-              <div style={{ fontSize: 11, color: 'rgba(167,243,208,0.65)' }}>Income · Recurring</div>
-            </div>
-            <div className="tnum" style={{ fontSize: 13, color: 'var(--mint)' }}>+$3,200</div>
-          </div>
-          <div className="auth__preview-row">
-            <span style={{ width: 32, height: 32, borderRadius: 9, background: 'rgba(167,243,208,0.15)', display: 'grid', placeItems: 'center' }}>
-              <Icon name="home" size={16} stroke="#A7F3D0" />
-            </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>Rent · April</div>
-              <div style={{ fontSize: 11, color: 'rgba(167,243,208,0.65)' }}>Home · Recurring</div>
-            </div>
-            <div className="tnum" style={{ fontSize: 13 }}>−$1,200</div>
-          </div>
+          ))}
         </div>
       </aside>
     </div>
@@ -189,11 +206,11 @@ function Field({ label, hint, error, children }) {
   );
 }
 
-function validate(f) {
-  const errs = {};
-  if (!f.name.trim()) errs.name = 'Please enter your full name.';
-  if (!/^\S+@\S+\.\S+$/.test(f.email)) errs.email = 'That email doesn’t look right.';
-  if (f.password.length < 8) errs.password = 'Use at least 8 characters.';
-  if (f.confirm !== f.password) errs.confirm = 'Passwords don’t match.';
-  return errs;
+function validate(form) {
+  const errors = {};
+  if (!form.name.trim()) errors.name = 'Please enter your full name.';
+  if (!/^\S+@\S+\.\S+$/.test(form.email)) errors.email = "That email doesn't look right.";
+  if (form.password.length < 8) errors.password = 'Use at least 8 characters.';
+  if (form.confirm !== form.password) errors.confirm = "Passwords don't match.";
+  return errors;
 }

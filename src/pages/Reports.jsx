@@ -1,27 +1,22 @@
 import { useMemo, useState } from 'react';
-import { useAppState } from '../state/AppState.jsx';
-import StatCard from '../components/StatCard.jsx';
-import SegmentedControl from '../components/SegmentedControl.jsx';
 import EmptyState from '../components/EmptyState.jsx';
-import SankeyFlowChart from '../components/SankeyFlowChart.jsx';
+import ReportsBreakdownCard from '../components/ReportsBreakdownCard.jsx';
+import SegmentedControl from '../components/SegmentedControl.jsx';
+import StatCard from '../components/StatCard.jsx';
+import { useAppState } from '../state/AppState.jsx';
+import { formatCurrency, formatPercent, isoMonth } from '../utils/format.js';
 import {
-  monthTotals,
-  spendingByCategory,
   categoryById,
   getSankeyData,
+  monthTotals,
+  spendingByCategory,
 } from '../utils/selectors.js';
-import { formatCurrency, formatPercent, isoMonth } from '../utils/format.js';
 
 const PERIODS = [
   { value: 'week', label: 'Week' },
   { value: 'month', label: 'Month' },
   { value: 'quarter', label: 'Quarter' },
   { value: 'year', label: 'Year' },
-];
-
-const VIEWS = [
-  { value: 'bars', label: 'Bars' },
-  { value: 'flow', label: 'Flow' },
 ];
 
 export default function Reports() {
@@ -31,20 +26,32 @@ export default function Reports() {
   const [view, setView] = useState('bars');
   const month = isoMonth();
   const periodTransactions = useMemo(
-    () => transactions.filter((t) => t.date.startsWith(month)),
+    () => transactions.filter((transaction) => transaction.date.startsWith(month)),
     [transactions, month]
   );
-
-  const totals = useMemo(() => monthTotals(periodTransactions, month), [periodTransactions, month]);
-  const spending = useMemo(() => spendingByCategory(periodTransactions, month), [periodTransactions, month]);
+  const totals = useMemo(
+    () => monthTotals(periodTransactions, month),
+    [periodTransactions, month]
+  );
+  const spending = useMemo(
+    () => spendingByCategory(periodTransactions, month),
+    [periodTransactions, month]
+  );
   const flowData = useMemo(
     () => getSankeyData(periodTransactions, categories),
     [periodTransactions, categories]
   );
+  const insights = useMemo(
+    () => buildInsights({ categories, spending, totals }),
+    [categories, spending, totals]
+  );
+  const hasAnyTransactions = transactions.length > 0;
+  const hasPeriodData = periodTransactions.length > 0;
+  const dailyAvg = hasPeriodData
+    ? totals.spending / Math.max(1, new Date().getDate())
+    : 0;
 
   if (state.status !== 'ready') return null;
-
-  const dailyAvg = totals.spending / new Date().getDate();
 
   return (
     <>
@@ -56,95 +63,117 @@ export default function Reports() {
         <SegmentedControl value={period} options={PERIODS} onChange={setPeriod} ariaLabel="Period" />
       </header>
 
-      <div className="kpi-grid">
-        <StatCard label="Income" value={formatCurrency(totals.income)} delta="+0% vs prev" deltaTone="up" />
-        <StatCard label="Spending" value={formatCurrency(totals.spending)} delta="−12% vs prev" deltaTone="up" />
-        <StatCard label="Savings rate" value={formatPercent(totals.savingsRate)} delta="+8 pts" deltaTone="up" />
-        <StatCard label="Avg. daily" value={formatCurrency(dailyAvg)} delta="−$6 vs prev" deltaTone="warn" />
-      </div>
+      {hasPeriodData ? (
+        <div className="kpi-grid">
+          <StatCard label="Income" value={formatCurrency(totals.income)} />
+          <StatCard label="Spending" value={formatCurrency(totals.spending)} />
+          <StatCard label="Savings rate" value={formatPercent(totals.savingsRate)} />
+          <StatCard label="Avg. daily" value={formatCurrency(dailyAvg)} />
+        </div>
+      ) : (
+        <section className="card card--lg" style={{ marginBottom: 20 }}>
+          <EmptyState
+            title={hasAnyTransactions ? 'No report data for this period' : 'No report data yet'}
+            copy={
+              hasAnyTransactions
+                ? 'Add income or expenses in this period to populate reports and charts.'
+                : 'Add your first expense to see reports, charts, and savings rate.'
+            }
+          />
+        </section>
+      )}
 
       <section className="dash-grid" style={{ alignItems: 'start' }}>
-        <div className="card card--lg">
-          <div className="row row--between" style={{ marginBottom: 14 }}>
-            <h2 className="t-h2">Spending breakdown</h2>
-            <SegmentedControl value={view} options={VIEWS} onChange={setView} ariaLabel="Chart view" />
-          </div>
-          {view === 'bars' ? (
-            <BarsChart spending={spending} categories={categories} />
-          ) : (
-            <FlowChart data={flowData} />
-          )}
-        </div>
+        <ReportsBreakdownCard
+          spending={spending}
+          categories={categories}
+          flowData={flowData}
+          view={view}
+          onViewChange={setView}
+          hasAnyTransactions={hasAnyTransactions}
+          hasPeriodTransactions={hasPeriodData}
+        />
 
-        <div className="card card--lg">
+        <section className="card card--lg">
           <h2 className="t-h2" style={{ marginBottom: 12 }}>Insights</h2>
-          <div className="stack" style={{ gap: 10 }}>
-            <Insight tone="success" title="Food trending down" body="Fewer coffee runs this month — nice work." />
-            <Insight tone="warning" title="Shopping nearing limit" body="97% of budget used. 12 days to go." />
-            <Insight tone="neutral" title="Biggest spend" body="Rent · $1,200 on the 1st." />
-          </div>
-        </div>
+          {insights.length === 0 ? (
+            <EmptyState
+              title={hasAnyTransactions ? 'No insights for this period' : 'No insights yet'}
+              copy={
+                hasAnyTransactions
+                  ? 'Add activity in this period to unlock insights here.'
+                  : 'Add your first expense to see report insights.'
+              }
+            />
+          ) : (
+            <div className="stack" style={{ gap: 10 }}>
+              {insights.map((insight) => (
+                <Insight
+                  key={insight.title}
+                  tone={insight.tone}
+                  title={insight.title}
+                  body={insight.body}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     </>
   );
 }
 
-function BarsChart({ spending, categories }) {
-  const max = Math.max(1, ...spending.map((s) => s.amount));
-  return (
-    <div className="stack" style={{ gap: 10 }}>
-      {spending.length === 0 && <div className="t-caption">No spending yet this month.</div>}
-      {spending.map((s, i) => {
-        const cat = categoryById(categories, s.categoryId);
-        const pct = (s.amount / max) * 100;
-        const fill = `var(--cat-${Math.min(7, 7 - i)})`;
-        return (
-          <div key={s.categoryId}>
-            <div className="row row--between" style={{ marginBottom: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{cat?.name || 'Other'}</span>
-              <span className="tnum" style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                {formatCurrency(s.amount)}
-              </span>
-            </div>
-            <div className="pbar" style={{ background: 'var(--mint-wash)' }}>
-              <div className="pbar__fill" style={{ width: `${pct}%`, background: fill }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+function buildInsights({ categories, spending, totals }) {
+  const nextInsights = [];
 
-function FlowChart({ data }) {
-  if (!data.links.length) {
-    return (
-      <EmptyState
-        title="No money flow data yet"
-        copy="Add income and expense entries this month to see how money moves through your categories."
-      />
-    );
+  if (spending.length > 0) {
+    const topCategory = categoryById(categories, spending[0].categoryId);
+    nextInsights.push({
+      tone: 'neutral',
+      title: 'Top category',
+      body: `${topCategory?.name || 'Other'} leads spending at ${formatCurrency(spending[0].amount)} this period.`,
+    });
   }
 
-  return (
-    <div className="stack" style={{ gap: 12 }}>
-      <div className="t-caption">
-        Income flows into a shared money pool, then into your biggest spending categories and savings.
-      </div>
-      <SankeyFlowChart data={data} height={360} framed={false} className="reports-flow-chart" />
-    </div>
-  );
+  if (totals.income > 0 && totals.spending > 0) {
+    nextInsights.push({
+      tone: totals.savingsRate >= 0.2 ? 'success' : 'warning',
+      title: 'Savings rate',
+      body: `You kept ${formatPercent(totals.savingsRate)} of income after expenses.`,
+    });
+  } else if (totals.income > 0 && totals.spending === 0) {
+    nextInsights.push({
+      tone: 'success',
+      title: 'No expenses yet',
+      body: 'Income is recorded for this period, but no expenses have been added yet.',
+    });
+  }
+
+  if (spending.length > 0) {
+    nextInsights.push({
+      tone: 'neutral',
+      title: 'Active categories',
+      body: `Spending touched ${spending.length} ${spending.length === 1 ? 'category' : 'categories'} this period.`,
+    });
+  }
+
+  return nextInsights.slice(0, 3);
 }
 
 function Insight({ tone, title, body }) {
   const bg =
-    tone === 'success' ? 'var(--mint-wash)' :
-    tone === 'warning' ? 'var(--warning-wash)' :
-    'var(--cream)';
+    tone === 'success'
+      ? 'var(--mint-wash)'
+      : tone === 'warning'
+        ? 'var(--warning-wash)'
+        : 'var(--cream)';
   const ink =
-    tone === 'success' ? 'var(--forest)' :
-    tone === 'warning' ? 'var(--warning-ink)' :
-    'var(--ink)';
+    tone === 'success'
+      ? 'var(--forest)'
+      : tone === 'warning'
+        ? 'var(--warning-ink)'
+        : 'var(--ink)';
+
   return (
     <div style={{ background: bg, borderRadius: 12, padding: 12 }}>
       <div style={{ fontSize: 13, fontWeight: 500, color: ink, marginBottom: 4 }}>{title}</div>
@@ -152,7 +181,3 @@ function Insight({ tone, title, body }) {
     </div>
   );
 }
-
-FlowChart.propTypes = {
-  data: SankeyFlowChart.propTypes.data,
-};

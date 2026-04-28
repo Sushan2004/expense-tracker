@@ -1,3 +1,4 @@
+import { DEFAULT_CATEGORY_COLOR, resolveCategoryColor } from './categoryAppearance.js';
 import { isoMonth } from './format.js';
 
 export function categoryById(categories, id) {
@@ -59,7 +60,8 @@ export function getBudgetCategoryData(budgets, transactions, categories, month =
       return {
         categoryId: budget.categoryId,
         name: category?.name || 'Other',
-        colorVar: category?.colorVar || '--cat-1',
+        icon: category?.icon || 'sparkle',
+        colorVar: resolveCategoryColor(category?.colorVar || DEFAULT_CATEGORY_COLOR),
         budget: budget.amount,
         spent,
         ratio,
@@ -128,6 +130,22 @@ export function uniqueId(prefix = 't') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+export function totalSavings(goals) {
+  if (!Array.isArray(goals)) return 0;
+  return goals.reduce((sum, goal) => sum + (Number(goal.current) || 0), 0);
+}
+
+export function checkingBalance({ transactions = [], goals = [] } = {}) {
+  let income = 0;
+  let expenses = 0;
+  for (const t of transactions) {
+    const amount = Number(t.amount) || 0;
+    if (t.type === 'income' || amount > 0) income += Math.abs(amount);
+    else expenses += Math.abs(amount);
+  }
+  return income - expenses - totalSavings(goals);
+}
+
 // Build {nodes, links} for the Money Flow Sankey chart.
 // 3 columns per DESIGN.md: income sources -> money pool -> destinations (+ savings).
 // - Caps destinations at 7
@@ -150,10 +168,17 @@ export function getSankeyData(transactions, categories, { maxNodes = 7, smallSha
   for (const t of expenses) {
     const cat = categories.find((c) => c.id === t.categoryId);
     const key = cat?.name || 'Other';
-    spendByCategory.set(key, (spendByCategory.get(key) || 0) + Math.abs(Number(t.amount) || 0));
+    const existing = spendByCategory.get(key) || {
+      name: key,
+      value: 0,
+      color: resolveCategoryColor(cat?.colorVar || DEFAULT_CATEGORY_COLOR),
+    };
+
+    existing.value += Math.abs(Number(t.amount) || 0);
+    spendByCategory.set(key, existing);
   }
   let expenseCategories = [...spendByCategory.entries()]
-    .map(([name, value]) => ({ name, value }))
+    .map(([, value]) => value)
     .sort((a, b) => b.value - a.value);
 
   const totalIncome = incomeSources.reduce((s, n) => s + n.value, 0);
@@ -167,14 +192,14 @@ export function getSankeyData(transactions, categories, { maxNodes = 7, smallSha
   if (smallSum > 0) {
     const existing = big.find((c) => c.name === 'Other');
     if (existing) existing.value += smallSum;
-    else big.push({ name: 'Other', value: smallSum });
+    else big.push({ name: 'Other', value: smallSum, color: DEFAULT_CATEGORY_COLOR });
   }
   let limited = big.slice(0, maxNodes);
   if (big.length > maxNodes) {
     const overflow = big.slice(maxNodes).reduce((s, c) => s + c.value, 0);
     const existing = limited.find((c) => c.name === 'Other');
     if (existing) existing.value += overflow;
-    else limited.push({ name: 'Other', value: overflow });
+    else limited.push({ name: 'Other', value: overflow, color: DEFAULT_CATEGORY_COLOR });
   }
   limited.sort((a, b) => b.value - a.value);
 
@@ -186,7 +211,7 @@ export function getSankeyData(transactions, categories, { maxNodes = 7, smallSha
   const catIdx = new Map();
   limited.forEach((c) => {
     catIdx.set(c.name, nodes.length);
-    nodes.push({ name: c.name, kind: 'expense' });
+    nodes.push({ name: c.name, kind: 'expense', color: c.color });
   });
   let savingsIdx = -1;
   if (savings > 0) {

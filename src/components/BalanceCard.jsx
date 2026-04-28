@@ -2,12 +2,24 @@ import PropTypes from 'prop-types';
 import { formatCurrency, formatPercent } from '../utils/format.js';
 import Icon from './Icon.jsx';
 
-export default function BalanceCard({ total, income, spending, savingsRate, accountsCount }) {
+export default function BalanceCard({
+  total,
+  income,
+  spending,
+  savingsRate,
+  accountsCount = 0,
+  mode = 'balance',
+}) {
+  const isCashflow = mode === 'cashflow';
+  const secondaryLabel = isCashflow
+    ? 'This month, from manual entries'
+    : `Across ${accountsCount} ${accountsCount === 1 ? 'account' : 'accounts'}`;
+
   return (
-    <section className="balance" aria-label="Total balance">
+    <section className="balance" aria-label={isCashflow ? 'Net cashflow' : 'Total balance'}>
       <div className="balance__row">
-        <span className="balance__label">Total balance</span>
-        <span className="balance__label">Across {accountsCount} accounts</span>
+        <span className="balance__label">{isCashflow ? 'Net cashflow' : 'Total balance'}</span>
+        <span className="balance__label">{secondaryLabel}</span>
       </div>
       <div className="balance__amount tnum">{formatCurrency(total)}</div>
       <div className="balance__stats">
@@ -39,5 +51,6 @@ BalanceCard.propTypes = {
   income: PropTypes.number.isRequired,
   spending: PropTypes.number.isRequired,
   savingsRate: PropTypes.number.isRequired,
-  accountsCount: PropTypes.number.isRequired,
+  accountsCount: PropTypes.number,
+  mode: PropTypes.oneOf(['balance', 'cashflow']),
 };

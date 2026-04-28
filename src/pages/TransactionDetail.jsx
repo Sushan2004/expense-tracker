@@ -4,6 +4,7 @@ import CategoryIcon from '../components/CategoryIcon.jsx';
 import Icon from '../components/Icon.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import { categoryById, accountById, uniqueId } from '../utils/selectors.js';
+import { getCategoryAccentStyle } from '../utils/categoryAppearance.js';
 import { formatCurrency, fullDate } from '../utils/format.js';
 
 export default function TransactionDetail() {
@@ -13,7 +14,7 @@ export default function TransactionDetail() {
 
   if (state.status !== 'ready') return null;
 
-  const tx = state.transactions.find((t) => t.id === id);
+  const tx = state.transactions.find((transaction) => transaction.id === id);
   if (!tx) {
     return (
       <>
@@ -26,17 +27,18 @@ export default function TransactionDetail() {
         <EmptyState
           title="Transaction not found"
           copy="It may have been deleted or the link is wrong."
-          action={
+          action={(
             <Link to="/transactions" className="btn btn--primary">Back to all transactions</Link>
-          }
+          )}
         />
       </>
     );
   }
 
-  const cat = categoryById(state.categories, tx.categoryId);
-  const acc = accountById(state.accounts, tx.accountId);
+  const category = categoryById(state.categories, tx.categoryId);
+  const account = accountById(state.accounts, tx.accountId);
   const isIncome = tx.type === 'income';
+  const iconStyle = getCategoryAccentStyle(category?.colorVar, 0.16);
 
   function onDelete() {
     if (!window.confirm('Delete this transaction?')) return;
@@ -77,8 +79,8 @@ export default function TransactionDetail() {
 
       <section className="card card--lg" style={{ maxWidth: 720 }}>
         <div className="tx-detail__hero">
-          <div className="tx-detail__icon" style={{ width: 64, height: 64, borderRadius: 16 }}>
-            <CategoryIcon categoryId={tx.categoryId} size={32} />
+          <div className="tx-detail__icon" style={{ ...iconStyle, width: 64, height: 64, borderRadius: 16 }}>
+            <CategoryIcon category={category} categoryId={tx.categoryId} size={32} />
           </div>
           <div>
             <div style={{ fontSize: 20, fontWeight: 500 }}>{tx.merchant}</div>
@@ -86,22 +88,22 @@ export default function TransactionDetail() {
           </div>
         </div>
         <div className={`tx-detail__amount${isIncome ? ' tx-detail__amount--income' : ''} tnum`}>
-          {isIncome ? '+' : '−'}
+          {isIncome ? '+' : '-'}
           {formatCurrency(Math.abs(tx.amount))}
         </div>
         <div className="tx-detail__list" style={{ fontSize: 14 }}>
-          <div className="row row--between"><span>Category</span><span>{cat?.name || '—'}</span></div>
-          <div className="row row--between"><span>Account</span><span>{acc?.name || '—'}</span></div>
+          <div className="row row--between"><span>Category</span><span>{category?.name || '-'}</span></div>
+          <div className="row row--between"><span>Account</span><span>{account?.name || 'Manual entry'}</span></div>
           <div className="row row--between"><span>Type</span><span>{isIncome ? 'Income' : 'Expense'}</span></div>
-          <div className="row row--between"><span>Recurring</span><span>{tx.recurring ? 'Yes' : '—'}</span></div>
+          <div className="row row--between"><span>Recurring</span><span>{tx.recurring ? 'Yes' : '-'}</span></div>
         </div>
-        {tx.note && (
+        {tx.note ? (
           <>
             <div className="tx-detail__divider" />
             <div className="t-eyebrow" style={{ marginBottom: 6 }}>Note</div>
             <p className="t-body">{tx.note}</p>
           </>
-        )}
+        ) : null}
       </section>
     </>
   );

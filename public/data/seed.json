@@ -1,69 +1,7 @@
 {
-  "user": {
-    "name": "Max",
-    "email": "max@expresstracker.app",
-    "initial": "M"
-  },
-  "accounts": [
-    { "id": "acc-main", "name": "Main Checking", "type": "checking", "balance": 2487.5 },
-    { "id": "acc-savings", "name": "Savings", "type": "savings", "balance": 2480.0 },
-    { "id": "acc-credit", "name": "Credit Card", "type": "credit", "balance": -680.0 }
-  ],
-  "categories": [
-    { "id": "cat-food", "name": "Food", "iconSvg": "M2 4h7v4a2 2 0 01-2 2H4a2 2 0 01-2-2V4z M9 5h1.3a1.5 1.5 0 010 3H9", "colorVar": "--cat-5" },
-    { "id": "cat-transport", "name": "Transport", "iconSvg": "M2 5h10v5a1 1 0 01-1 1H3a1 1 0 01-1-1V5z M4 11.2v0.8 M10 11.2v0.8", "colorVar": "--cat-4" },
-    { "id": "cat-shopping", "name": "Shopping", "iconSvg": "M3 5h8l-.5 7h-7L3 5z M5 5V3.5a2 2 0 014 0V5", "colorVar": "--cat-3" },
-    { "id": "cat-home", "name": "Home", "iconSvg": "M2 6l5-4 5 4v5a1 1 0 01-1 1H3a1 1 0 01-1-1V6z", "colorVar": "--cat-7" },
-    { "id": "cat-subs", "name": "Subscriptions", "iconSvg": "M3 7a4 4 0 017-2.6L11 5 M11 7a4 4 0 01-7 2.6L3 9 M11 3v2H9 M3 11V9h2", "colorVar": "--cat-6" },
-    { "id": "cat-fun", "name": "Entertainment", "iconSvg": "M2 4h10v6H2z M5 6.5l3 1.5-3 1.5z", "colorVar": "--cat-2" },
-    { "id": "cat-health", "name": "Health", "iconSvg": "M7 12s-4-2.5-4-6a2.5 2.5 0 014.5-1.5A2.5 2.5 0 0111 6c0 3.5-4 6-4 6z", "colorVar": "--cat-4" },
-    { "id": "cat-other", "name": "Other", "iconSvg": "M7 2v3 M7 9v3 M2 7h3 M9 7h3 M3.5 3.5l2 2 M8.5 8.5l2 2 M3.5 10.5l2-2 M8.5 5.5l2-2", "colorVar": "--cat-1" }
-  ],
-  "transactions": [
-    { "id": "t-001", "merchant": "Acme payroll", "categoryId": "cat-other", "accountId": "acc-main", "amount": 3200, "date": "2026-04-01", "note": "Monthly salary", "recurring": true, "type": "income" },
-    { "id": "t-002", "merchant": "Side gig — design", "categoryId": "cat-other", "accountId": "acc-main", "amount": 450, "date": "2026-04-15", "note": "Logo for friend's cafe", "recurring": false, "type": "income" },
-    { "id": "t-003", "merchant": "Rent · April", "categoryId": "cat-home", "accountId": "acc-main", "amount": -1200, "date": "2026-04-01", "note": "Apartment rent", "recurring": true, "type": "expense" },
-    { "id": "t-004", "merchant": "Spotify", "categoryId": "cat-subs", "accountId": "acc-credit", "amount": -10.99, "date": "2026-04-03", "note": "Family plan", "recurring": true, "type": "expense" },
-    { "id": "t-005", "merchant": "Verizon Wireless", "categoryId": "cat-subs", "accountId": "acc-main", "amount": -65, "date": "2026-04-04", "note": "Phone bill", "recurring": true, "type": "expense" },
-    { "id": "t-006", "merchant": "Trader Joe's", "categoryId": "cat-shopping", "accountId": "acc-main", "amount": -64.2, "date": "2026-04-05", "note": "Weekly groceries", "recurring": false, "type": "expense" },
-    { "id": "t-007", "merchant": "Blue Bottle Coffee", "categoryId": "cat-food", "accountId": "acc-main", "amount": -6.5, "date": "2026-04-06", "note": "Morning latte", "recurring": false, "type": "expense" },
-    { "id": "t-008", "merchant": "Uber", "categoryId": "cat-transport", "accountId": "acc-credit", "amount": -14.2, "date": "2026-04-07", "note": "To downtown meeting", "recurring": false, "type": "expense" },
-    { "id": "t-009", "merchant": "Sweetgreen", "categoryId": "cat-food", "accountId": "acc-main", "amount": -13.8, "date": "2026-04-08", "note": "Lunch", "recurring": false, "type": "expense" },
-    { "id": "t-010", "merchant": "AMC Theaters", "categoryId": "cat-fun", "accountId": "acc-credit", "amount": -22, "date": "2026-04-09", "note": "Movie night", "recurring": false, "type": "expense" },
-    { "id": "t-011", "merchant": "CVS Pharmacy", "categoryId": "cat-health", "accountId": "acc-main", "amount": -18.4, "date": "2026-04-10", "note": "Vitamins", "recurring": false, "type": "expense" },
-    { "id": "t-012", "merchant": "Whole Foods Market", "categoryId": "cat-shopping", "accountId": "acc-main", "amount": -82.5, "date": "2026-04-11", "note": "Groceries + flowers", "recurring": false, "type": "expense" },
-    { "id": "t-013", "merchant": "Lyft", "categoryId": "cat-transport", "accountId": "acc-main", "amount": -11.4, "date": "2026-04-12", "note": "Airport pickup", "recurring": false, "type": "expense" },
-    { "id": "t-014", "merchant": "Netflix", "categoryId": "cat-subs", "accountId": "acc-credit", "amount": -15.49, "date": "2026-04-13", "note": "Standard plan", "recurring": true, "type": "expense" },
-    { "id": "t-015", "merchant": "Chipotle", "categoryId": "cat-food", "accountId": "acc-main", "amount": -12.6, "date": "2026-04-14", "note": "Dinner", "recurring": false, "type": "expense" },
-    { "id": "t-016", "merchant": "Starbucks", "categoryId": "cat-food", "accountId": "acc-credit", "amount": -5.75, "date": "2026-04-15", "note": "", "recurring": false, "type": "expense" },
-    { "id": "t-017", "merchant": "Apple Store", "categoryId": "cat-shopping", "accountId": "acc-credit", "amount": -129, "date": "2026-04-16", "note": "Magic Mouse", "recurring": false, "type": "expense" },
-    { "id": "t-018", "merchant": "Equinox", "categoryId": "cat-health", "accountId": "acc-main", "amount": -185, "date": "2026-04-17", "note": "Monthly gym", "recurring": true, "type": "expense" },
-    { "id": "t-019", "merchant": "Concert tickets", "categoryId": "cat-fun", "accountId": "acc-credit", "amount": -78, "date": "2026-04-18", "note": "Friday show", "recurring": false, "type": "expense" },
-    { "id": "t-020", "merchant": "Trader Joe's", "categoryId": "cat-shopping", "accountId": "acc-main", "amount": -47.3, "date": "2026-04-19", "note": "Weekly groceries", "recurring": false, "type": "expense" },
-    { "id": "t-021", "merchant": "Blue Bottle Coffee", "categoryId": "cat-food", "accountId": "acc-main", "amount": -6.5, "date": "2026-04-20", "note": "Morning latte", "recurring": false, "type": "expense" },
-    { "id": "t-022", "merchant": "Uber", "categoryId": "cat-transport", "accountId": "acc-credit", "amount": -9.8, "date": "2026-04-21", "note": "Across town", "recurring": false, "type": "expense" },
-    { "id": "t-023", "merchant": "Pharmacy refill", "categoryId": "cat-health", "accountId": "acc-main", "amount": -22, "date": "2026-04-22", "note": "Allergy meds", "recurring": false, "type": "expense" },
-    { "id": "t-024", "merchant": "Local cafe", "categoryId": "cat-food", "accountId": "acc-main", "amount": -8.2, "date": "2026-04-23", "note": "", "recurring": false, "type": "expense" },
-    { "id": "t-025", "merchant": "Notion", "categoryId": "cat-subs", "accountId": "acc-credit", "amount": -8, "date": "2026-04-24", "note": "Personal plan", "recurring": true, "type": "expense" },
-    { "id": "t-026", "merchant": "Trader Joe's", "categoryId": "cat-shopping", "accountId": "acc-main", "amount": -39.4, "date": "2026-04-25", "note": "Quick stop", "recurring": false, "type": "expense" },
-    { "id": "t-027", "merchant": "Blue Bottle Coffee", "categoryId": "cat-food", "accountId": "acc-main", "amount": -6.5, "date": "2026-04-26", "note": "Morning latte", "recurring": false, "type": "expense" },
-    { "id": "t-028", "merchant": "Steam", "categoryId": "cat-fun", "accountId": "acc-credit", "amount": -34.99, "date": "2026-03-28", "note": "Weekend sale", "recurring": false, "type": "expense" },
-    { "id": "t-029", "merchant": "Walgreens", "categoryId": "cat-health", "accountId": "acc-main", "amount": -14.2, "date": "2026-03-25", "note": "First aid", "recurring": false, "type": "expense" },
-    { "id": "t-030", "merchant": "Costco", "categoryId": "cat-shopping", "accountId": "acc-main", "amount": -148.6, "date": "2026-03-22", "note": "Stock-up trip", "recurring": false, "type": "expense" }
-  ],
-  "budgets": [
-    { "categoryId": "cat-food", "amount": 250, "month": "2026-04" },
-    { "categoryId": "cat-transport", "amount": 120, "month": "2026-04" },
-    { "categoryId": "cat-shopping", "amount": 350, "month": "2026-04" },
-    { "categoryId": "cat-home", "amount": 1300, "month": "2026-04" },
-    { "categoryId": "cat-subs", "amount": 120, "month": "2026-04" },
-    { "categoryId": "cat-fun", "amount": 150, "month": "2026-04" },
-    { "categoryId": "cat-health", "amount": 250, "month": "2026-04" },
-    { "categoryId": "cat-other", "amount": 100, "month": "2026-04" }
-  ],
-  "goals": [
-    { "id": "g-1", "name": "Emergency fund", "target": 5000, "current": 2480, "dueDate": "2026-12-31" },
-    { "id": "g-2", "name": "Trip to Lisbon", "target": 2200, "current": 940, "dueDate": "2026-09-15" },
-    { "id": "g-3", "name": "New laptop", "target": 1800, "current": 320, "dueDate": "2026-11-01" }
-  ]
+  "user": null,
+  "accounts": [],
+  "transactions": [],
+  "budgets": [],
+  "goals": []
 }

@@ -44,6 +44,19 @@ const PATHS = {
     </>
   ),
   plus: <path d="M10 4v12M4 10h12" />,
+  minus: <path d="M4 10h12" />,
+  expand: (
+    <>
+      <path d="M8 4H4v4" />
+      <path d="M12 4h4v4" />
+      <path d="M16 12v4h-4" />
+      <path d="M4 12v4h4" />
+      <path d="M4 8l5-5" />
+      <path d="M16 8l-5-5" />
+      <path d="M16 12l-5 5" />
+      <path d="M4 12l5 5" />
+    </>
+  ),
   arrowLeft: <path d="M12 5l-5 5 5 5M7 10h9" />,
   arrowDown: <path d="M10 4v11m-4-4l4 4 4-4" />,
   arrowUp: <path d="M10 16V5m-4 4l4-4 4 4" />,

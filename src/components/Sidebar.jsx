@@ -9,7 +9,7 @@ const NAV = [
   { to: '/reports', label: 'Reports', icon: 'bars' },
   { to: '/categories', label: 'Categories', icon: 'grid' },
   { to: '/wallet', label: 'Accounts', icon: 'wallet' },
-  { to: '/goals', label: 'Goals', icon: 'star' },
+  { to: '/goals', label: 'Income & Savings', icon: 'star' },
 ];
 
 export default function Sidebar({ user }) {
@@ -21,7 +21,7 @@ export default function Sidebar({ user }) {
             <path d="M4 9.5 L7.5 13 L14.5 5.5" stroke="#A7F3D0" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <span className="sidebar__brand-name">Express</span>
+        <span className="sidebar__brand-name">Expense Tracker</span>
       </div>
       <nav className="sidebar__nav">
         {NAV.map((item) => (
@@ -39,7 +39,7 @@ export default function Sidebar({ user }) {
       </nav>
       <div className="sidebar__divider" aria-hidden="true" />
       <NavLink to="/settings" className="sidebar__profile" aria-label="Settings">
-        <span className="sidebar__avatar">{user?.initial || 'M'}</span>
+        <span className="sidebar__avatar">{user?.initial || 'Y'}</span>
         <span className="sidebar__profile-meta">
           <span className="sidebar__profile-name">{user?.name || 'You'}</span>
           <span className="sidebar__profile-role">Settings</span>
