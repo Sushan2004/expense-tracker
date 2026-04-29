@@ -37,6 +37,7 @@ const FEATURES = [
 
 export default function Landing() {
   const { isAuthenticated } = useSession();
+  const primaryCtaTarget = isAuthenticated ? '/dashboard' : '/auth?mode=signup';
 
   return (
     <div className="landing-page">
@@ -104,7 +105,7 @@ export default function Landing() {
 
             <div className="landing-hero__actions">
               <Link
-                to={isAuthenticated ? '/dashboard' : '/auth?mode=signup'}
+                to={primaryCtaTarget}
                 className="landing-btn landing-btn--hero"
               >
                 {isAuthenticated ? 'Go to dashboard' : 'Start tracking free'}
@@ -115,7 +116,7 @@ export default function Landing() {
             </div>
 
             <div className="landing-preview">
-              <div className="landing-preview__frame">
+              <div className="landing-preview__dashboard" aria-hidden="true">
                 <div className="landing-preview__bar">
                   <span className="landing-preview__dot landing-preview__dot--red" />
                   <span className="landing-preview__dot landing-preview__dot--amber" />
@@ -123,41 +124,73 @@ export default function Landing() {
                   <span className="landing-preview__url">expense-tracker.local/dashboard</span>
                 </div>
 
-                <div className="landing-preview__metrics">
-                  <article className="landing-preview__metric">
-                    <div className="landing-preview__label">Net cashflow</div>
-                    <div className="landing-preview__value">$1,240</div>
-                    <div className="landing-preview__meta">Income, spending, savings in one view</div>
-                    <div className="landing-preview__track">
-                      <span className="landing-preview__fill landing-preview__fill--emerald" style={{ width: '68%' }} />
-                    </div>
-                  </article>
-
-                  <article className="landing-preview__metric">
-                    <div className="landing-preview__label">Budget health</div>
-                    <div className="landing-preview__value">$430 left</div>
-                    <div className="landing-preview__meta">Category limits update as expenses arrive</div>
-                    <div className="landing-preview__track">
-                      <span className="landing-preview__fill landing-preview__fill--amber" style={{ width: '54%' }} />
-                    </div>
-                  </article>
+                <div className="landing-preview__dashboard-top">
+                  <div>
+                    <div className="landing-preview__dashboard-greeting">Good evening, Ayush</div>
+                    <div className="landing-preview__dashboard-date">Tuesday, April 28, 2026</div>
+                  </div>
+                  <div className="landing-preview__dashboard-action">+ Add entry</div>
                 </div>
 
-                <div className="landing-preview__categories">
-                  {[
-                    ['Food', '34%', 'var(--emerald-dark)'],
-                    ['Transport', '22%', '#0EA5E9'],
-                    ['Shopping', '61%', '#F59E0B'],
-                    ['Home', '48%', '#6366F1'],
-                  ].map(([name, percent, color]) => (
-                    <div key={name} className="landing-preview__category">
-                      <span className="landing-preview__category-name">{name}</span>
-                      <span className="landing-preview__category-track">
-                        <span className="landing-preview__category-fill" style={{ width: percent, background: color }} />
-                      </span>
-                      <span className="landing-preview__category-value">{percent}</span>
+                <div className="landing-preview__dashboard-hero">
+                  <div className="landing-preview__dashboard-hero-copy">
+                    <div className="landing-preview__dashboard-eyebrow">APRIL 2026</div>
+                    <div className="landing-preview__dashboard-title">Net cashflow</div>
+                    <div className="landing-preview__dashboard-sub">
+                      Income minus spending and money moved into savings this month.
                     </div>
-                  ))}
+                  </div>
+                  <div className="landing-preview__dashboard-total">$250.00</div>
+
+                  <div className="landing-preview__dashboard-metrics">
+                    {[
+                      ['Income', '$500.00'],
+                      ['Spending', '$50.00'],
+                      ['Saved', '$200.00'],
+                      ['Left in checking', '$250.00'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="landing-preview__dashboard-metric">
+                        <div className="landing-preview__dashboard-metric-label">{label}</div>
+                        <div className="landing-preview__dashboard-metric-value">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="landing-preview__dashboard-chart">
+                  <div className="landing-preview__dashboard-chart-head">
+                    <div>
+                      <div className="landing-preview__dashboard-chart-title">Spending over time</div>
+                      <div className="landing-preview__dashboard-chart-sub">
+                        See how expense activity builds over the periods that matter most.
+                      </div>
+                    </div>
+                    <div className="landing-preview__dashboard-chart-controls">
+                      <span className="landing-preview__dashboard-chip is-active">Daily</span>
+                      <span className="landing-preview__dashboard-chip">Weekly</span>
+                      <span className="landing-preview__dashboard-chip">Monthly</span>
+                      <span className="landing-preview__dashboard-chip">Yearly</span>
+                      <span className="landing-preview__dashboard-chip landing-preview__dashboard-chip--month">
+                        Month: April 2026
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="landing-preview__dashboard-plot">
+                    {[60, 45, 30, 15, 0].map((tick) => (
+                      <div key={tick} className="landing-preview__dashboard-gridline">
+                        <span>${tick}</span>
+                      </div>
+                    ))}
+                    <div className="landing-preview__dashboard-bar-wrap">
+                      <span className="landing-preview__dashboard-bar" />
+                    </div>
+                  </div>
+
+                  <div className="landing-preview__dashboard-chart-foot">
+                    <span>April 2026 · 30 days</span>
+                    <span>$50.00 across 1 expense</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -225,12 +258,15 @@ export default function Landing() {
             <div className="landing-cta">
               <div className="landing-cta__text">
                 <h2>Start with the essentials, keep the insight.</h2>
-                <p className="landing-cta__sub">FREE FOREVER</p>
+                <p className="landing-cta__sub">
+                  <span className="landing-cta__sub-main">FREE FOREVER</span>
+                  <span className="landing-cta__sub-note">No need to pay anything.</span>
+                </p>
               </div>
 
               <Link
-                to={isAuthenticated ? '/dashboard' : '/auth?mode=signup'}
-                className="landing-btn landing-btn--white"
+                to={primaryCtaTarget}
+                className="landing-btn landing-btn--white landing-cta__button"
               >
                 {isAuthenticated ? 'Back to your dashboard' : 'Create your account'}
               </Link>
@@ -240,11 +276,9 @@ export default function Landing() {
 
         <footer className="landing-footer">
           <span>Expense Tracker</span>
-          <div className="landing-footer__links">
-            <a href="#features">Features</a>
-            <a href="#about">About</a>
-            <a href="#pricing">Pricing</a>
-          </div>
+          <span className="landing-footer__meta">
+            {isAuthenticated ? 'You are signed in.' : 'Create an account to start tracking.'}
+          </span>
         </footer>
       </div>
     </div>

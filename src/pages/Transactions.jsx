@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import CategoryIcon from '../components/CategoryIcon.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import ErrorBanner from '../components/ErrorBanner.jsx';
 import FilterChipSelect from '../components/FilterChipSelect.jsx';
 import Icon from '../components/Icon.jsx';
 import Skeleton from '../components/Skeleton.jsx';
+import TransactionAvatar from '../components/TransactionAvatar.jsx';
 import TransactionRow from '../components/TransactionRow.jsx';
 import useLocalStorage from '../hooks/useLocalStorage.js';
 import { useAppState } from '../state/AppState.jsx';
-import { getCategoryAccentStyle } from '../utils/categoryAppearance.js';
 import { formatCurrency, formatDayLabel, fullDate } from '../utils/format.js';
 import { accountById, categoryById, groupByDay } from '../utils/selectors.js';
 
@@ -295,7 +294,6 @@ export default function Transactions() {
 
 function DetailPreview({ transaction, category, account }) {
   const isIncome = transaction.type === 'income';
-  const iconStyle = getCategoryAccentStyle(category?.colorVar, 0.16);
 
   return (
     <div className="card card--lg">
@@ -304,9 +302,12 @@ function DetailPreview({ transaction, category, account }) {
         <Link to={`/transactions/${transaction.id}`} className="section-head__action">Open</Link>
       </div>
       <div className="tx-detail__hero">
-        <div className="tx-detail__icon" style={iconStyle}>
-          <CategoryIcon category={category} categoryId={transaction.categoryId} size={26} />
-        </div>
+        <TransactionAvatar
+          transaction={transaction}
+          category={category}
+          size={26}
+          className="tx-detail__icon"
+        />
         <div>
           <div style={{ fontSize: 16, fontWeight: 500 }}>{transaction.merchant}</div>
           <div className="t-caption">{fullDate(transaction.date)}</div>

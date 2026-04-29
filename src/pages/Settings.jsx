@@ -1,8 +1,13 @@
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BudgetPopoverSelect from '../components/BudgetPopoverSelect.jsx';
 import Icon from '../components/Icon.jsx';
 import useLocalStorage from '../hooks/useLocalStorage.js';
 import { clearStoredAppState, useAppState } from '../state/AppState.jsx';
 import { useSession } from '../state/SessionState.jsx';
+import { getCurrencyDisplayName, getCurrencySymbol } from '../utils/currencyApi.js';
+import { exportAppBackupJson, exportTransactionsCsv } from '../utils/exportData.js';
+import { formatCurrency } from '../utils/format.js';
 
 const GROUPS = [
   {
@@ -15,7 +20,6 @@ const GROUPS = [
   {
     title: 'Preferences',
     rows: [
-      { name: 'Currency', hint: 'USD - $ - 2 decimals', icon: 'wallet' },
       { name: 'Week starts on', hint: 'Monday', icon: 'calendar' },
     ],
   },
@@ -50,12 +54,93 @@ const THEME_OPTIONS = [
 ];
 
 export default function Settings() {
-  const { state, dispatch, resolvedTheme, systemTheme } = useAppState();
+  const {
+    state,
+    dispatch,
+    resolvedTheme,
+    systemTheme,
+    displayCurrencyCode,
+    currencyApiConfigured,
+    setDisplayCurrency,
+  } = useAppState();
   const { currentUser, logOut } = useSession();
   const [reduceMotion, setReduceMotion] = useLocalStorage('et:reduce-motion', false);
   const [tightLists, setTightLists] = useLocalStorage('et:tight-lists', false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const navigate = useNavigate();
   const hasTransactions = state.transactions.length > 0;
+  const currencyState = state.currency;
+  const activeCurrencyRate = currencyState?.rates?.[displayCurrencyCode]?.rate || 1;
+  const activeCurrencyUpdatedAt = currencyState?.rates?.[displayCurrencyCode]?.updatedAt || null;
+  const currencyOptions = useMemo(
+    () =>
+      (currencyState?.availableCodes || ['USD']).map((code) => ({
+        value: code,
+        label: code,
+        meta: getCurrencyDisplayName(code),
+        visual: (
+          <span className="settings-currency__visual" aria-hidden="true">
+            {getCurrencySymbol(code)}
+          </span>
+        ),
+      })),
+    [currencyState?.availableCodes]
+  );
+  const currencyPreview = useMemo(
+    () =>
+      formatCurrency(1234.56, {
+        currencyCode: displayCurrencyCode,
+        rate: activeCurrencyRate,
+      }),
+    [activeCurrencyRate, displayCurrencyCode]
+  );
+  const ratePreview = useMemo(() => {
+    if (displayCurrencyCode === 'USD') return 'Base currency: USD';
+    return `1 USD ≈ ${formatCurrency(1, {
+      currencyCode: displayCurrencyCode,
+      rate: activeCurrencyRate,
+    })}`;
+  }, [activeCurrencyRate, displayCurrencyCode]);
+  const rateUpdatedLabel = activeCurrencyUpdatedAt
+    ? new Date(activeCurrencyUpdatedAt).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null;
+
+  function handleExportCsv() {
+    exportTransactionsCsv({
+      transactions: state.transactions,
+      categories: state.categories,
+      accounts: state.accounts,
+      incomeEntries: state.incomeEntries,
+      incomeSources: state.incomeSources,
+    });
+    dispatch({
+      type: 'toast/show',
+      payload: { message: 'CSV export downloaded.', kind: 'success' },
+    });
+    setIsExportOpen(false);
+  }
+
+  function handleExportJson() {
+    exportAppBackupJson({
+      state,
+      settings: {
+        displayCurrency: state.currency?.code || 'USD',
+        baseCurrency: state.currency?.baseCode || 'USD',
+        reduceMotion,
+        tightLists,
+      },
+    });
+    dispatch({
+      type: 'toast/show',
+      payload: { message: 'JSON backup downloaded.', kind: 'success' },
+    });
+    setIsExportOpen(false);
+  }
 
   if (state.status !== 'ready') return null;
 
@@ -104,6 +189,48 @@ export default function Settings() {
         </div>
 
         <div className="stack">
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Currency</div>
+            <div className="settings-list">
+              <div className="settings-row settings-row--wide-control">
+                <span className="settings-row__content">
+                  <div className="settings-row__name">Display currency</div>
+                  <div className="settings-row__hint">
+                    All amounts stay stored in USD. Changing this only affects how money is shown across the app.
+                  </div>
+                  <div className="settings-row__meta-note">
+                    Preview: <span className="tnum">{currencyPreview}</span> / {ratePreview}
+                  </div>
+                  {rateUpdatedLabel ? (
+                    <div className="settings-row__meta-note">Rate updated {rateUpdatedLabel}</div>
+                  ) : null}
+                  {currencyState?.error ? (
+                    <div className="settings-row__error">{currencyState.error}</div>
+                  ) : null}
+                  {!currencyApiConfigured ? (
+                    <div className="settings-row__meta-note">
+                      Add <code>VITE_UNIRATE_API_KEY</code> to enable live UniRate conversion.
+                    </div>
+                  ) : null}
+                </span>
+                <div className="settings-row__control">
+                  <BudgetPopoverSelect
+                    value={displayCurrencyCode}
+                    options={currencyOptions}
+                    onChange={(code) => {
+                      void setDisplayCurrency(code);
+                    }}
+                    placeholder="Choose currency"
+                    ariaLabel="Select display currency"
+                    disabled={currencyState?.isLoading}
+                    keyboardSearch
+                    emptyLabel="No currency found."
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section>
             <div className="t-eyebrow" style={{ marginBottom: 8 }}>Appearance</div>
             <div className="appearance-grid">
@@ -192,17 +319,21 @@ export default function Settings() {
             <div className="t-eyebrow" style={{ marginBottom: 8 }}>Data</div>
             <div className="settings-list">
               <div className="settings-row">
-                <span>
+                <span className="settings-row__content">
                   <div className="settings-row__name">Export data</div>
                   <div className="settings-row__hint">
                     {hasTransactions
-                      ? 'Download a CSV of all transactions'
-                      : 'Available after you add transactions'}
+                      ? 'Download a transactions CSV or a full JSON backup of your app data'
+                      : 'JSON backup is ready any time. CSV becomes available after you add transactions.'}
                   </div>
                 </span>
-                <button type="button" className="btn btn--secondary" disabled={!hasTransactions}>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => setIsExportOpen(true)}
+                >
                   <Icon name="download" size={14} />
-                  Export
+                  Export Data
                 </button>
               </div>
               <div className="settings-row">
@@ -249,6 +380,100 @@ export default function Settings() {
           </section>
         </div>
       </div>
+
+      {isExportOpen ? (
+        <div
+          className="sheet-backdrop"
+          role="presentation"
+          onClick={() => setIsExportOpen(false)}
+        >
+          <div
+            className="sheet export-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="export-sheet-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sheet__head export-sheet__head">
+              <div>
+                <div className="t-eyebrow">Export</div>
+                <h2 id="export-sheet-title" className="t-h1">Choose export format</h2>
+                <div className="t-caption">Download transactions for spreadsheets or export a full backup.</div>
+              </div>
+              <button
+                type="button"
+                className="export-sheet__close"
+                aria-label="Close export options"
+                onClick={() => setIsExportOpen(false)}
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            <div className="export-sheet__options">
+              <article className="export-option">
+                <div className="export-option__icon" aria-hidden="true">
+                  <Icon name="list" size={18} />
+                </div>
+                <div className="export-option__copy">
+                  <div className="export-option__title">CSV</div>
+                  <div className="export-option__eyebrow">Best for Excel / Google Sheets</div>
+                  <p className="export-option__body">
+                    Exports transactions in spreadsheet format with date, type, category, name, amount, note, and source.
+                  </p>
+                </div>
+                <div className="export-option__actions">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    disabled={!hasTransactions}
+                    onClick={handleExportCsv}
+                  >
+                    <Icon name="download" size={14} />
+                    Download CSV
+                  </button>
+                  {!hasTransactions ? (
+                    <div className="export-option__meta">Add transactions to enable CSV export.</div>
+                  ) : null}
+                </div>
+              </article>
+
+              <article className="export-option">
+                <div className="export-option__icon" aria-hidden="true">
+                  <Icon name="grid" size={18} />
+                </div>
+                <div className="export-option__copy">
+                  <div className="export-option__title">JSON</div>
+                  <div className="export-option__eyebrow">Best for backup</div>
+                  <p className="export-option__body">
+                    Exports full app data including transactions, categories, budgets, income, savings, and settings.
+                  </p>
+                </div>
+                <div className="export-option__actions">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={handleExportJson}
+                  >
+                    <Icon name="download" size={14} />
+                    Download JSON
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <div className="export-sheet__footer">
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => setIsExportOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

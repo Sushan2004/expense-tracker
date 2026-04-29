@@ -1,20 +1,70 @@
-const currency = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+import { BASE_CURRENCY_CODE, normalizeCurrencyCode } from './currencyApi.js';
 
-const currencyCompact = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
+const currencyFormatterCache = new Map();
+let currencyDisplayConfig = {
+  currencyCode: BASE_CURRENCY_CODE,
+  rate: 1,
+};
 
-export function formatCurrency(value, { compact = false } = {}) {
-  if (Number.isNaN(value) || value == null) return '$0.00';
-  return compact ? currencyCompact.format(value) : currency.format(value);
+function normalizeCurrencyRate(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
+}
+
+function getCurrencyFormatter(currencyCode, compact) {
+  const normalizedCode = normalizeCurrencyCode(currencyCode);
+  const cacheKey = `${normalizedCode}:${compact ? 'compact' : 'full'}`;
+
+  if (!currencyFormatterCache.has(cacheKey)) {
+    currencyFormatterCache.set(
+      cacheKey,
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: normalizedCode,
+        minimumFractionDigits: compact ? 0 : 2,
+        maximumFractionDigits: compact ? 0 : 2,
+      })
+    );
+  }
+
+  return currencyFormatterCache.get(cacheKey);
+}
+
+export function setCurrencyDisplayConfig({
+  currencyCode = BASE_CURRENCY_CODE,
+  rate = 1,
+} = {}) {
+  currencyDisplayConfig = {
+    currencyCode: normalizeCurrencyCode(currencyCode),
+    rate: normalizeCurrencyRate(rate),
+  };
+}
+
+export function getCurrencyDisplayConfig() {
+  return { ...currencyDisplayConfig };
+}
+
+export function convertCurrencyAmount(value, { rate = currencyDisplayConfig.rate } = {}) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return numeric * normalizeCurrencyRate(rate);
+}
+
+export function formatCurrency(
+  value,
+  {
+    compact = false,
+    currencyCode = currencyDisplayConfig.currencyCode,
+    rate = currencyDisplayConfig.rate,
+    convert = true,
+  } = {}
+) {
+  const formatter = getCurrencyFormatter(currencyCode, compact);
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return formatter.format(0);
+
+  const displayValue = convert ? convertCurrencyAmount(numeric, { rate }) : numeric;
+  return formatter.format(displayValue);
 }
 
 export function formatPercent(ratio, digits = 1) {

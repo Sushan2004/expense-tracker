@@ -1,14 +1,13 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import CategoryIcon from './CategoryIcon.jsx';
+import TransactionAvatar from './TransactionAvatar.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { getCategoryAccentStyle, resolveCategoryColor } from '../utils/categoryAppearance.js';
+import { resolveCategoryColor } from '../utils/categoryAppearance.js';
 
 export default function TransactionRow({ transaction, category, account, active = false, asLink = true }) {
   const isIncome = transaction.type === 'income';
   const sign = isIncome ? '+' : '-';
   const accentColor = resolveCategoryColor(category?.colorVar);
-  const iconStyle = getCategoryAccentStyle(accentColor, isIncome ? 0.18 : 0.14);
   const rowStyle = { '--trow-accent': accentColor };
   const meta = [
     category?.name || 'Other',
@@ -18,9 +17,12 @@ export default function TransactionRow({ transaction, category, account, active 
 
   const inner = (
     <>
-      <span className="trow__icon" style={iconStyle}>
-        <CategoryIcon category={category} categoryId={transaction.categoryId} size={15} />
-      </span>
+      <TransactionAvatar
+        transaction={transaction}
+        category={category}
+        size={15}
+        className="trow__icon"
+      />
       <span className="trow__main">
         <span className="trow__merchant">{transaction.merchant}</span>
         <span className="trow__meta">{meta}</span>

@@ -1,8 +1,29 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import PropTypes from 'prop-types';
 import {
   DEFAULT_CATEGORIES,
 } from '../data/defaultCategories.js';
+import {
+  BASE_CURRENCY_CODE,
+  FALLBACK_CURRENCY_CODES,
+  fetchAvailableCurrencies,
+  fetchConversionRate,
+  getUniRateApiKey,
+  hasUniRateApiKey,
+  isFreshTimestamp,
+  mergeCurrencyCodes,
+  normalizeCurrencyCode,
+} from '../utils/currencyApi.js';
 import {
   DEFAULT_CATEGORY_COLOR,
   DEFAULT_CATEGORY_ICON,
@@ -12,11 +33,15 @@ import {
 } from '../utils/categoryAppearance.js';
 import { useSession } from './SessionState.jsx';
 import { checkingBalance, uniqueId } from '../utils/selectors.js';
-import { todayIso } from '../utils/format.js';
+import { setCurrencyDisplayConfig, todayIso } from '../utils/format.js';
 
 export const APP_STATE_STORAGE_KEY = 'et:app-state';
 export const APP_STATE_STORAGE_PREFIX = 'et:app-state:';
 const THEME_MODES = new Set(['light', 'dark', 'system']);
+const CURRENCY_RATE_TTL_MS = 1000 * 60 * 60 * 12;
+const CURRENCY_OPTIONS_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const CURRENCY_UNAVAILABLE_MESSAGE = 'Currency conversion unavailable right now.';
+const CURRENCY_API_CONFIGURED = Boolean(getUniRateApiKey());
 
 const AppStateContext = createContext(null);
 const defaultCategoryIds = new Set(DEFAULT_CATEGORIES.map((category) => category.id));
@@ -75,6 +100,79 @@ function normalizeTransactions(value) {
 
 function normalizeThemeMode(value) {
   return THEME_MODES.has(value) ? value : 'system';
+}
+
+function normalizeCurrencyRateEntry(entry, code) {
+  if (code === BASE_CURRENCY_CODE) {
+    return {
+      rate: 1,
+      updatedAt: entry?.updatedAt || null,
+    };
+  }
+
+  const rate = Number(entry?.rate);
+  if (!Number.isFinite(rate) || rate <= 0) return null;
+
+  return {
+    rate,
+    updatedAt: entry?.updatedAt || null,
+  };
+}
+
+function normalizeCurrencyRates(value) {
+  const rates = {
+    [BASE_CURRENCY_CODE]: {
+      rate: 1,
+      updatedAt: null,
+    },
+  };
+
+  if (!value || typeof value !== 'object') return rates;
+
+  Object.entries(value).forEach(([rawCode, entry]) => {
+    const code = normalizeCurrencyCode(rawCode);
+    const normalized = normalizeCurrencyRateEntry(entry, code);
+    if (!normalized) return;
+    rates[code] = normalized;
+  });
+
+  return rates;
+}
+
+function normalizeCurrencyState(value) {
+  const rates = normalizeCurrencyRates(value?.rates);
+  const availableCodes = mergeCurrencyCodes(FALLBACK_CURRENCY_CODES, value?.availableCodes || []);
+  const requestedCode = normalizeCurrencyCode(value?.code || BASE_CURRENCY_CODE);
+  const code = requestedCode === BASE_CURRENCY_CODE || rates[requestedCode]
+    ? requestedCode
+    : BASE_CURRENCY_CODE;
+
+  return {
+    baseCode: BASE_CURRENCY_CODE,
+    code,
+    rates,
+    availableCodes,
+    optionsUpdatedAt: value?.optionsUpdatedAt || null,
+    isLoading: false,
+    error: value?.error ? String(value.error) : null,
+  };
+}
+
+function getCurrencyRateForState(currencyState) {
+  if (!currencyState || currencyState.code === BASE_CURRENCY_CODE) return 1;
+  const rate = Number(currencyState.rates?.[currencyState.code]?.rate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 1;
+}
+
+function getPersistableCurrencyState(currencyState) {
+  const normalized = normalizeCurrencyState(currencyState);
+  return {
+    baseCode: normalized.baseCode,
+    code: normalized.code,
+    rates: normalized.rates,
+    availableCodes: normalized.availableCodes,
+    optionsUpdatedAt: normalized.optionsUpdatedAt,
+  };
 }
 
 function clampPercent(value) {
@@ -283,9 +381,12 @@ function normalizeSavingsTransfer(transfer) {
     id: transfer.id,
     goalId: String(transfer.goalId),
     amount,
+    name: transfer.name ? String(transfer.name).trim() : '',
     date: transfer.date || todayIso(),
     note: transfer.note ? String(transfer.note) : '',
     kind: transfer.kind === 'income-save' ? 'income-save' : 'manual',
+    recurring: Boolean(transfer.recurring),
+    frequency: INCOME_FREQUENCIES.has(transfer.frequency) ? transfer.frequency : 'one-time',
     createdAt: transfer.createdAt || transfer.date || todayIso(),
   };
 }
@@ -302,6 +403,7 @@ function normalizeState(payload) {
   return {
     user: source.user ? structuredClone(source.user) : null,
     themeMode: normalizeThemeMode(source.themeMode),
+    currency: normalizeCurrencyState(source.currency),
     accounts: cloneList(source.accounts),
     categories: mergeCategories(source.categories),
     transactions: normalizeTransactions(source.transactions),
@@ -343,6 +445,7 @@ function getPersistableState(state) {
   return {
     user: state.user ? structuredClone(state.user) : null,
     themeMode: normalizeThemeMode(state.themeMode),
+    currency: getPersistableCurrencyState(state.currency),
     accounts: cloneList(state.accounts),
     categories: cloneList(state.categories),
     transactions: cloneList(state.transactions),
@@ -440,6 +543,93 @@ function reverseSavedAmount(goals, savedAmount, splitConfig) {
   });
 }
 
+function normalizeRecurringFrequency(value, fallback = 'monthly') {
+  if (INCOME_FREQUENCIES.has(value) && value !== 'one-time') return value;
+  return fallback;
+}
+
+function buildExpenseTransaction({
+  id,
+  title,
+  amount,
+  categoryId,
+  accountId,
+  date,
+  note,
+  recurring,
+  frequency,
+}) {
+  return {
+    id,
+    merchant: String(title || '').trim(),
+    categoryId,
+    accountId: accountId || null,
+    amount: -Math.abs(Number(amount) || 0),
+    date,
+    note: note ? String(note).trim() : '',
+    recurring: Boolean(recurring),
+    frequency: recurring ? normalizeRecurringFrequency(frequency) : 'one-time',
+    type: 'expense',
+  };
+}
+
+function buildIncomeTransaction({
+  id,
+  title,
+  amount,
+  date,
+  note,
+  frequency,
+}) {
+  return {
+    id,
+    merchant: String(title || '').trim() || 'Income',
+    categoryId: 'cat-income',
+    accountId: null,
+    amount: Math.abs(Number(amount) || 0),
+    date,
+    note: note ? String(note).trim() : '',
+    recurring: frequency !== 'one-time',
+    frequency,
+    type: 'income',
+  };
+}
+
+function buildSavingsTransferRecord({
+  id,
+  goalId,
+  title,
+  amount,
+  date,
+  note,
+  recurring,
+  frequency,
+  createdAt,
+}) {
+  return normalizeSavingsTransfer({
+    id,
+    goalId,
+    amount: Math.abs(Number(amount) || 0),
+    name: title,
+    date,
+    note,
+    kind: 'manual',
+    recurring,
+    frequency: recurring ? normalizeRecurringFrequency(frequency) : 'one-time',
+    createdAt,
+  });
+}
+
+function applyManualTransferToGoals(goals, goalId, amountDelta) {
+  if (!(Number(amountDelta) > 0) || !goalId) return goals;
+
+  return goals.map((goal) =>
+    goal.id === goalId
+      ? { ...goal, current: Math.max(0, goal.current + amountDelta) }
+      : goal
+  );
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'load/success': {
@@ -455,6 +645,89 @@ function reducer(state, action) {
       return { ...state, status: 'ready', error: action.payload };
     case 'theme/set':
       return { ...state, themeMode: normalizeThemeMode(action.payload) };
+    case 'currency/request':
+      return {
+        ...state,
+        currency: {
+          ...state.currency,
+          isLoading: true,
+          error: null,
+        },
+      };
+    case 'currency/optionsLoaded': {
+      const availableCodes = mergeCurrencyCodes(
+        state.currency.availableCodes,
+        action.payload?.availableCodes || []
+      );
+
+      return {
+        ...state,
+        currency: {
+          ...state.currency,
+          availableCodes,
+          optionsUpdatedAt: action.payload?.optionsUpdatedAt || state.currency.optionsUpdatedAt,
+          isLoading: false,
+          error: null,
+        },
+      };
+    }
+    case 'currency/set': {
+      const code = normalizeCurrencyCode(action.payload?.code || BASE_CURRENCY_CODE);
+      const nextRates = normalizeCurrencyRates({
+        ...state.currency.rates,
+        [code]: {
+          rate: code === BASE_CURRENCY_CODE ? 1 : action.payload?.rate,
+          updatedAt: action.payload?.updatedAt || state.currency.rates?.[code]?.updatedAt || null,
+        },
+      });
+
+      return {
+        ...state,
+        currency: {
+          ...state.currency,
+          code,
+          rates: nextRates,
+          availableCodes: mergeCurrencyCodes(
+            state.currency.availableCodes,
+            [code],
+            action.payload?.availableCodes || []
+          ),
+          optionsUpdatedAt: action.payload?.optionsUpdatedAt || state.currency.optionsUpdatedAt,
+          isLoading: false,
+          error: null,
+        },
+      };
+    }
+    case 'currency/error':
+      return {
+        ...state,
+        currency: {
+          ...state.currency,
+          availableCodes: mergeCurrencyCodes(
+            state.currency.availableCodes,
+            action.payload?.availableCodes || []
+          ),
+          optionsUpdatedAt: action.payload?.optionsUpdatedAt || state.currency.optionsUpdatedAt,
+          isLoading: false,
+          error: action.payload?.message || CURRENCY_UNAVAILABLE_MESSAGE,
+        },
+      };
+    case 'currency/fallback':
+      return {
+        ...state,
+        currency: {
+          ...state.currency,
+          code: BASE_CURRENCY_CODE,
+          rates: normalizeCurrencyRates(state.currency.rates),
+          availableCodes: mergeCurrencyCodes(
+            state.currency.availableCodes,
+            action.payload?.availableCodes || []
+          ),
+          optionsUpdatedAt: action.payload?.optionsUpdatedAt || state.currency.optionsUpdatedAt,
+          isLoading: false,
+          error: action.payload?.message || CURRENCY_UNAVAILABLE_MESSAGE,
+        },
+      };
     case 'tx/add':
       return { ...state, transactions: [action.payload, ...state.transactions] };
     case 'tx/update':
@@ -573,9 +846,6 @@ function reducer(state, action) {
       const normalized = normalizeIncomeEntry(action.payload);
       if (!normalized) return state;
 
-      const source = state.incomeSources.find((s) => s.id === normalized.sourceId);
-      const merchantName = source?.name || 'Income';
-
       const savedAmount = (normalized.amount * normalized.savePercent) / 100;
       const validSplit = normalized.splitConfig.filter((entry) =>
         state.goals.some((goal) => goal.id === entry.goalId)
@@ -584,7 +854,7 @@ function reducer(state, action) {
       const transactionId = normalized.transactionId || uniqueId('t');
       const transaction = {
         id: transactionId,
-        merchant: merchantName,
+        merchant: state.incomeSources.find((source) => source.id === normalized.sourceId)?.name || 'Income',
         categoryId: 'cat-income',
         accountId: null,
         amount: normalized.amount,
@@ -603,7 +873,10 @@ function reducer(state, action) {
       return {
         ...state,
         incomeEntries: [entryWithRefs, ...state.incomeEntries],
-        transactions: [transaction, ...state.transactions],
+        transactions: [
+          transaction,
+          ...state.transactions.filter((existingTransaction) => existingTransaction.id !== transactionId),
+        ],
         goals: nextGoals,
       };
     }
@@ -623,6 +896,173 @@ function reducer(state, action) {
           ? state.transactions.filter((tx) => tx.id !== entry.transactionId)
           : state.transactions,
         goals: nextGoals,
+      };
+    }
+    case 'savingsTransfer/delete': {
+      const transfer = state.savingsTransfers.find((item) => item.id === action.payload);
+      if (!transfer) return state;
+
+      return {
+        ...state,
+        goals: state.goals.map((goal) =>
+          goal.id === transfer.goalId
+            ? { ...goal, current: Math.max(0, goal.current - transfer.amount) }
+            : goal
+        ),
+        savingsTransfers: state.savingsTransfers.filter((item) => item.id !== transfer.id),
+      };
+    }
+    case 'entry/save': {
+      const payload = action.payload || {};
+      const id = String(payload.id || '').trim();
+      const title = String(payload.title || '').trim();
+      const date = payload.date || todayIso();
+      const nextType = payload.type;
+      const amount = Math.abs(Number(payload.amount));
+      const note = payload.note ? String(payload.note) : '';
+      const recurring = Boolean(payload.recurring);
+      const frequency = recurring ? normalizeRecurringFrequency(payload.frequency) : 'one-time';
+      const categoryId = payload.categoryId ? String(payload.categoryId) : '';
+      const accountId = payload.accountId ? String(payload.accountId) : null;
+      const sourceId = payload.sourceId ? String(payload.sourceId) : null;
+      const goalId = payload.goalId ? String(payload.goalId) : null;
+
+      if (!id || !title || !date || !Number.isFinite(amount) || amount <= 0) return state;
+      if (!['expense', 'income', 'transfer'].includes(nextType)) return state;
+      if (nextType === 'expense' && !categoryId) return state;
+      if (nextType === 'income' && !sourceId) return state;
+      if (nextType === 'transfer' && !goalId) return state;
+      if (nextType === 'income' && !state.incomeSources.some((source) => source.id === sourceId)) return state;
+      if (nextType === 'transfer' && !state.goals.some((goal) => goal.id === goalId)) return state;
+
+      const existingTransaction = state.transactions.find((transaction) => transaction.id === id) || null;
+      const existingTransfer = state.savingsTransfers.find((transfer) => transfer.id === id) || null;
+      const existingIncomeEntry = existingTransaction
+        ? state.incomeEntries.find((entry) => entry.transactionId === existingTransaction.id) || null
+        : null;
+
+      if (!existingTransaction && !existingTransfer) return state;
+
+      let nextTransactions = [...state.transactions];
+      let nextIncomeEntries = [...state.incomeEntries];
+      let nextGoals = [...state.goals];
+      let nextSavingsTransfers = [...state.savingsTransfers];
+
+      if (existingIncomeEntry) {
+        const oldSavedAmount = (existingIncomeEntry.amount * existingIncomeEntry.savePercent) / 100;
+        nextGoals = oldSavedAmount > 0
+          ? reverseSavedAmount(nextGoals, oldSavedAmount, existingIncomeEntry.splitConfig)
+          : nextGoals;
+        nextIncomeEntries = nextIncomeEntries.filter((entry) => entry.id !== existingIncomeEntry.id);
+      }
+
+      if (existingTransaction) {
+        nextTransactions = nextTransactions.filter((transaction) => transaction.id !== existingTransaction.id);
+      }
+
+      if (existingTransfer) {
+        nextGoals = nextGoals.map((goal) =>
+          goal.id === existingTransfer.goalId
+            ? { ...goal, current: Math.max(0, goal.current - existingTransfer.amount) }
+            : goal
+        );
+        nextSavingsTransfers = nextSavingsTransfers.filter((transfer) => transfer.id !== existingTransfer.id);
+      }
+
+      if (nextType === 'expense') {
+        nextTransactions = [
+          buildExpenseTransaction({
+            id,
+            title,
+            amount,
+            categoryId,
+            accountId,
+            date,
+            note,
+            recurring,
+            frequency,
+          }),
+          ...nextTransactions,
+        ];
+
+        return {
+          ...state,
+          transactions: nextTransactions,
+          incomeEntries: nextIncomeEntries,
+          goals: nextGoals,
+          savingsTransfers: nextSavingsTransfers,
+        };
+      }
+
+      if (nextType === 'income') {
+        const splitConfig = (existingIncomeEntry?.splitConfig || []).filter((entry) =>
+          nextGoals.some((goal) => goal.id === entry.goalId)
+        );
+        const savePercent = clampPercent(existingIncomeEntry?.savePercent ?? 0);
+        const incomeEntry = normalizeIncomeEntry({
+          id: existingIncomeEntry?.id || uniqueId('inc'),
+          sourceId,
+          amount,
+          frequency,
+          note,
+          savePercent,
+          splitConfig,
+          date,
+          transactionId: id,
+          createdAt: existingIncomeEntry?.createdAt || todayIso(),
+        });
+
+        if (!incomeEntry) return state;
+
+        nextIncomeEntries = [incomeEntry, ...nextIncomeEntries];
+        nextTransactions = [
+          buildIncomeTransaction({
+            id,
+            title,
+            amount,
+            date,
+            note,
+            frequency: incomeEntry.frequency,
+          }),
+          ...nextTransactions,
+        ];
+
+        const savedAmount = (incomeEntry.amount * incomeEntry.savePercent) / 100;
+        nextGoals = savedAmount > 0
+          ? distributeSavedAmount(nextGoals, savedAmount, splitConfig)
+          : nextGoals;
+
+        return {
+          ...state,
+          transactions: nextTransactions,
+          incomeEntries: nextIncomeEntries,
+          goals: nextGoals,
+          savingsTransfers: nextSavingsTransfers,
+        };
+      }
+
+      const transfer = buildSavingsTransferRecord({
+        id,
+        goalId,
+        title,
+        amount,
+        date,
+        note,
+        recurring,
+        frequency,
+        createdAt: existingTransfer?.createdAt || todayIso(),
+      });
+      if (!transfer) return state;
+
+      nextGoals = applyManualTransferToGoals(nextGoals, transfer.goalId, transfer.amount);
+      nextSavingsTransfers = [transfer, ...nextSavingsTransfers];
+
+      return {
+        ...state,
+        transactions: nextTransactions,
+        incomeEntries: nextIncomeEntries,
+        goals: nextGoals,
+        savingsTransfers: nextSavingsTransfers,
       };
     }
     case 'goal/add': {
@@ -661,21 +1101,19 @@ function reducer(state, action) {
 
       return {
         ...state,
-        goals: state.goals.map((goal) =>
-          goal.id === goalId
-            ? { ...goal, current: Math.max(0, goal.current + numericAmount) }
-            : goal
-        ),
+        goals: applyManualTransferToGoals(state.goals, goalId, numericAmount),
         savingsTransfers: [
-          {
+          buildSavingsTransferRecord({
             id: action.payload.id || uniqueId('svtx'),
             goalId,
+            title: action.payload.name || action.payload.title || 'Savings transfer',
             amount: numericAmount,
             date: action.payload.date || todayIso(),
             note: action.payload.note ? String(action.payload.note) : '',
-            kind: 'manual',
+            recurring: Boolean(action.payload.recurring),
+            frequency: action.payload.frequency,
             createdAt: action.payload.createdAt || todayIso(),
-          },
+          }),
           ...state.savingsTransfers,
         ],
       };
@@ -696,8 +1134,133 @@ export function AppStateProvider({ children }) {
     if (typeof window === 'undefined') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
+  const stateRef = useRef(state);
+
+  stateRef.current = state;
 
   const resolvedTheme = state.themeMode === 'system' ? systemTheme : state.themeMode;
+  const displayCurrencyCode = state.currency?.code || BASE_CURRENCY_CODE;
+  const displayCurrencyRate = getCurrencyRateForState(state.currency);
+
+  const refreshAvailableCurrencies = useCallback(async ({ force = false, silent = false } = {}) => {
+    const currentCurrency = stateRef.current.currency;
+    const currentCodes = currentCurrency?.availableCodes?.length
+      ? currentCurrency.availableCodes
+      : mergeCurrencyCodes(FALLBACK_CURRENCY_CODES);
+
+    if (!hasUniRateApiKey()) {
+      return currentCodes;
+    }
+
+    if (
+      !force
+      && currentCurrency?.availableCodes?.length
+      && isFreshTimestamp(currentCurrency.optionsUpdatedAt, CURRENCY_OPTIONS_TTL_MS)
+    ) {
+      return currentCurrency.availableCodes;
+    }
+
+    if (!silent) {
+      dispatch({ type: 'currency/request' });
+    }
+
+    try {
+      const availableCodes = await fetchAvailableCurrencies();
+      const optionsUpdatedAt = new Date().toISOString();
+      dispatch({
+        type: 'currency/optionsLoaded',
+        payload: { availableCodes, optionsUpdatedAt },
+      });
+      return availableCodes;
+    } catch {
+      if (!silent) {
+        dispatch({
+          type: 'currency/error',
+          payload: { message: CURRENCY_UNAVAILABLE_MESSAGE },
+        });
+      }
+      return currentCodes;
+    }
+  }, []);
+
+  const setDisplayCurrency = useCallback(async (nextCode) => {
+    const currencyCode = normalizeCurrencyCode(nextCode);
+
+    if (currencyCode === BASE_CURRENCY_CODE) {
+      dispatch({
+        type: 'currency/set',
+        payload: {
+          code: BASE_CURRENCY_CODE,
+          rate: 1,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      return true;
+    }
+
+    const currentCurrency = stateRef.current.currency;
+    const cachedRate = currentCurrency?.rates?.[currencyCode];
+    const hasFreshCachedRate = cachedRate && isFreshTimestamp(cachedRate.updatedAt, CURRENCY_RATE_TTL_MS);
+
+    if (hasFreshCachedRate) {
+      dispatch({
+        type: 'currency/set',
+        payload: {
+          code: currencyCode,
+          rate: cachedRate.rate,
+          updatedAt: cachedRate.updatedAt,
+        },
+      });
+      return true;
+    }
+
+    dispatch({ type: 'currency/request' });
+
+    try {
+      const [conversion, availableCodes] = await Promise.all([
+        fetchConversionRate(currencyCode),
+        refreshAvailableCurrencies({ silent: true }),
+      ]);
+
+      dispatch({
+        type: 'currency/set',
+        payload: {
+          code: currencyCode,
+          rate: conversion.rate,
+          updatedAt: conversion.updatedAt,
+          availableCodes,
+          optionsUpdatedAt: new Date().toISOString(),
+        },
+      });
+      return true;
+    } catch {
+      if (cachedRate?.rate) {
+        dispatch({
+          type: 'currency/set',
+          payload: {
+            code: currencyCode,
+            rate: cachedRate.rate,
+            updatedAt: cachedRate.updatedAt,
+          },
+        });
+        dispatch({
+          type: 'currency/error',
+          payload: { message: CURRENCY_UNAVAILABLE_MESSAGE },
+        });
+      } else {
+        dispatch({
+          type: 'currency/fallback',
+          payload: { message: CURRENCY_UNAVAILABLE_MESSAGE },
+        });
+      }
+
+      dispatch({
+        type: 'toast/show',
+        payload: { message: CURRENCY_UNAVAILABLE_MESSAGE, kind: 'error' },
+      });
+      return false;
+    }
+  }, [refreshAvailableCurrencies]);
 
   useEffect(() => {
     if (state.status !== 'ready') return;
@@ -716,6 +1279,13 @@ export function AppStateProvider({ children }) {
   useLayoutEffect(() => {
     dispatch({ type: 'load/success', payload: loadStateForUser(currentUser) });
   }, [currentUser]);
+
+  useLayoutEffect(() => {
+    setCurrencyDisplayConfig({
+      currencyCode: displayCurrencyCode,
+      rate: displayCurrencyRate,
+    });
+  }, [displayCurrencyCode, displayCurrencyRate]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -748,9 +1318,32 @@ export function AppStateProvider({ children }) {
     return () => clearTimeout(timeoutId);
   }, [state.toast]);
 
+  useEffect(() => {
+    if (!CURRENCY_API_CONFIGURED) return;
+    void refreshAvailableCurrencies({ silent: true });
+  }, [refreshAvailableCurrencies]);
+
   const value = useMemo(
-    () => ({ state, dispatch, resolvedTheme, systemTheme }),
-    [resolvedTheme, state, systemTheme]
+    () => ({
+      state,
+      dispatch,
+      resolvedTheme,
+      systemTheme,
+      displayCurrencyCode,
+      displayCurrencyRate,
+      currencyApiConfigured: CURRENCY_API_CONFIGURED,
+      setDisplayCurrency,
+      refreshAvailableCurrencies,
+    }),
+    [
+      displayCurrencyCode,
+      displayCurrencyRate,
+      refreshAvailableCurrencies,
+      resolvedTheme,
+      setDisplayCurrency,
+      state,
+      systemTheme,
+    ]
   );
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

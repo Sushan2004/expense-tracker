@@ -9,13 +9,46 @@ export default function BudgetPopoverSelect({
   placeholder,
   ariaLabel,
   disabled = false,
+  keyboardSearch = false,
+  emptyLabel = 'No options found.',
 }) {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const rootRef = useRef(null);
+  const clearSearchTimeoutRef = useRef(null);
+
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) || null,
     [options, value]
   );
+
+  const filteredOptions = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!keyboardSearch || !query) return options;
+
+    return options.filter((option) => {
+      const haystack = [option.value, option.label, option.meta]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [keyboardSearch, options, searchTerm]);
+
+  function clearPendingSearchReset() {
+    if (!clearSearchTimeoutRef.current) return;
+    window.clearTimeout(clearSearchTimeoutRef.current);
+    clearSearchTimeoutRef.current = null;
+  }
+
+  function scheduleSearchReset() {
+    clearPendingSearchReset();
+    clearSearchTimeoutRef.current = window.setTimeout(() => {
+      setSearchTerm('');
+      clearSearchTimeoutRef.current = null;
+    }, 900);
+  }
 
   useEffect(() => {
     if (!open) return undefined;
@@ -23,22 +56,49 @@ export default function BudgetPopoverSelect({
     function handlePointerDown(event) {
       if (!rootRef.current?.contains(event.target)) {
         setOpen(false);
+        setSearchTerm('');
       }
     }
 
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         setOpen(false);
+        setSearchTerm('');
+        return;
       }
+
+      if (!keyboardSearch) return;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+      if (event.key === 'Backspace') {
+        if (!searchTerm) return;
+        event.preventDefault();
+        setSearchTerm((current) => current.slice(0, -1));
+        scheduleSearchReset();
+        return;
+      }
+
+      if (event.key.length !== 1) return;
+
+      event.preventDefault();
+      setSearchTerm((current) => `${current}${event.key}`);
+      scheduleSearchReset();
     }
 
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearPendingSearchReset();
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
+  }, [keyboardSearch, open, searchTerm]);
+
+  useEffect(() => {
+    if (open) return;
+    setSearchTerm('');
+    clearPendingSearchReset();
   }, [open]);
 
   return (
@@ -86,7 +146,17 @@ export default function BudgetPopoverSelect({
 
       {open ? (
         <div className="budget-select__menu" role="listbox" aria-label={ariaLabel}>
-          {options.map((option) => {
+          {keyboardSearch && searchTerm ? (
+            <div className="budget-select__search-pill" aria-live="polite">
+              Searching: <strong>{searchTerm}</strong>
+            </div>
+          ) : null}
+
+          {filteredOptions.length === 0 ? (
+            <div className="budget-select__empty" role="status">
+              {emptyLabel}
+            </div>
+          ) : filteredOptions.map((option) => {
             const active = option.value === value;
 
             return (
@@ -99,6 +169,7 @@ export default function BudgetPopoverSelect({
                 onClick={() => {
                   onChange(option.value);
                   setOpen(false);
+                  setSearchTerm('');
                 }}
               >
                 <span className="budget-select__main">
@@ -143,4 +214,6 @@ BudgetPopoverSelect.propTypes = {
   placeholder: PropTypes.string,
   ariaLabel: PropTypes.string.isRequired,
   disabled: PropTypes.bool,
+  keyboardSearch: PropTypes.bool,
+  emptyLabel: PropTypes.string,
 };

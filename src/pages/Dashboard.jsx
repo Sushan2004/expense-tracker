@@ -129,12 +129,6 @@ export default function Dashboard() {
           </h1>
           <span className="topbar__date">{dateLabel}</span>
         </div>
-        <div className="topbar__actions">
-          <Link to="/add" className="btn btn--primary">
-            <Icon name="plus" size={14} strokeWidth={2} />
-            Add entry
-          </Link>
-        </div>
       </header>
 
       <div className="dashboard-page">
@@ -399,7 +393,6 @@ function DashboardSkeleton() {
           <Skeleton width={220} height={26} />
           <Skeleton width={180} height={12} style={{ marginTop: 6 }} />
         </div>
-        <Skeleton width={132} height={38} radius={10} />
       </header>
       <div className="dashboard-page">
         <Skeleton height={240} radius={22} />

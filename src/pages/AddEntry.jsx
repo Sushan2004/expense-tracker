@@ -387,7 +387,7 @@ export default function AddEntry() {
                   className="input"
                   value={merchant}
                   onChange={(event) => setMerchant(event.target.value)}
-                  placeholder="Store or bill name"
+                  placeholder="Amazon, Walmart, Starbucks, Netflix..."
                 />
               </label>
 
