@@ -4,6 +4,4 @@ dist/
 .env.local
 .env.*.local
 Design.md
-.claude/
-
-
+.env
