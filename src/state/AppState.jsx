@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   DEFAULT_CATEGORIES,
@@ -10,10 +10,12 @@ import {
   normalizeCategoryIcon,
   resolveCategoryColor,
 } from '../utils/categoryAppearance.js';
+import { useSession } from './SessionState.jsx';
 import { checkingBalance, uniqueId } from '../utils/selectors.js';
 import { todayIso } from '../utils/format.js';
 
 export const APP_STATE_STORAGE_KEY = 'et:app-state';
+export const APP_STATE_STORAGE_PREFIX = 'et:app-state:';
 const THEME_MODES = new Set(['light', 'dark', 'system']);
 
 const AppStateContext = createContext(null);
@@ -271,6 +273,28 @@ function normalizeGoals(value) {
   return value.map(normalizeGoal).filter(Boolean);
 }
 
+function normalizeSavingsTransfer(transfer) {
+  if (!transfer?.id || !transfer?.goalId) return null;
+
+  const amount = Number(transfer.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  return {
+    id: transfer.id,
+    goalId: String(transfer.goalId),
+    amount,
+    date: transfer.date || todayIso(),
+    note: transfer.note ? String(transfer.note) : '',
+    kind: transfer.kind === 'income-save' ? 'income-save' : 'manual',
+    createdAt: transfer.createdAt || transfer.date || todayIso(),
+  };
+}
+
+function normalizeSavingsTransfers(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(normalizeSavingsTransfer).filter(Boolean);
+}
+
 function normalizeState(payload) {
   const source = payload || {};
   const income = migrateIncomeData(source);
@@ -285,15 +309,31 @@ function normalizeState(payload) {
     goals: normalizeGoals(source.goals),
     incomeSources: income.sources,
     incomeEntries: income.entries,
+    savingsTransfers: normalizeSavingsTransfers(source.savingsTransfers),
   };
 }
 
-function readStoredAppState() {
+function getUserAppStateStorageKey(userId) {
+  return `${APP_STATE_STORAGE_PREFIX}${userId}`;
+}
+
+function readStoredAppState(userId) {
   if (typeof window === 'undefined') return null;
 
   try {
-    const raw = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!userId) return null;
+
+    const userKey = getUserAppStateStorageKey(userId);
+    const userRaw = window.localStorage.getItem(userKey);
+    if (userRaw) return JSON.parse(userRaw);
+
+    const legacyRaw = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
+    if (!legacyRaw) return null;
+
+    const legacyState = JSON.parse(legacyRaw);
+    window.localStorage.setItem(userKey, JSON.stringify(legacyState));
+    window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
+    return legacyState;
   } catch {
     return null;
   }
@@ -310,22 +350,41 @@ function getPersistableState(state) {
     goals: cloneList(state.goals),
     incomeSources: cloneList(state.incomeSources),
     incomeEntries: cloneList(state.incomeEntries),
+    savingsTransfers: cloneList(state.savingsTransfers),
   };
 }
 
-export function clearStoredAppState() {
+export function clearStoredAppState(userId) {
   if (typeof window === 'undefined') return;
 
   try {
+    if (userId) {
+      window.localStorage.removeItem(getUserAppStateStorageKey(userId));
+      return;
+    }
+
     window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
   } catch {
     /* ignore storage failures */
   }
 }
 
-function createBootstrapState() {
-  const stored = readStoredAppState();
+function loadStateForUser(currentUser) {
+  if (!currentUser) {
+    return normalizeState({ user: null });
+  }
+
+  const stored = readStoredAppState(currentUser.id);
   const next = normalizeState(stored);
+
+  return {
+    ...next,
+    user: currentUser,
+  };
+}
+
+function createBootstrapState(currentUser) {
+  const next = loadStateForUser(currentUser);
 
   return {
     status: 'ready',
@@ -588,6 +647,7 @@ function reducer(state, action) {
       return {
         ...state,
         goals: state.goals.filter((goal) => goal.id !== action.payload),
+        savingsTransfers: state.savingsTransfers.filter((transfer) => transfer.goalId !== action.payload),
       };
     case 'goal/transfer': {
       const { goalId, amount } = action.payload;
@@ -606,6 +666,18 @@ function reducer(state, action) {
             ? { ...goal, current: Math.max(0, goal.current + numericAmount) }
             : goal
         ),
+        savingsTransfers: [
+          {
+            id: action.payload.id || uniqueId('svtx'),
+            goalId,
+            amount: numericAmount,
+            date: action.payload.date || todayIso(),
+            note: action.payload.note ? String(action.payload.note) : '',
+            kind: 'manual',
+            createdAt: action.payload.createdAt || todayIso(),
+          },
+          ...state.savingsTransfers,
+        ],
       };
     }
     case 'toast/show':
@@ -618,7 +690,8 @@ function reducer(state, action) {
 }
 
 export function AppStateProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, createBootstrapState);
+  const { currentUser } = useSession();
+  const [state, dispatch] = useReducer(reducer, currentUser, createBootstrapState);
   const [systemTheme, setSystemTheme] = useState(() => {
     if (typeof window === 'undefined') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -628,16 +701,21 @@ export function AppStateProvider({ children }) {
 
   useEffect(() => {
     if (state.status !== 'ready') return;
+    if (!currentUser?.id) return;
 
     try {
       window.localStorage.setItem(
-        APP_STATE_STORAGE_KEY,
+        getUserAppStateStorageKey(currentUser.id),
         JSON.stringify(getPersistableState(state))
       );
     } catch {
       /* ignore storage failures */
     }
-  }, [state]);
+  }, [currentUser?.id, state]);
+
+  useLayoutEffect(() => {
+    dispatch({ type: 'load/success', payload: loadStateForUser(currentUser) });
+  }, [currentUser]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;

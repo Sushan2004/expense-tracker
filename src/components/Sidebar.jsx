@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import Icon from './Icon.jsx';
 
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: 'home', end: true },
+  { to: '/dashboard', label: 'Dashboard', icon: 'home', end: true },
   { to: '/transactions', label: 'Transactions', icon: 'list' },
   { to: '/budget', label: 'Budget', icon: 'clock' },
   { to: '/reports', label: 'Reports', icon: 'bars' },

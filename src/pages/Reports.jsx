@@ -28,7 +28,14 @@ const PERIODS = [
 
 export default function Reports() {
   const { state, resolvedTheme } = useAppState();
-  const { transactions, categories } = state;
+  const {
+    transactions,
+    categories,
+    incomeEntries,
+    incomeSources,
+    goals,
+    savingsTransfers,
+  } = state;
   const [period, setPeriod] = useState('month');
   const [view, setView] = useState('bars');
   const periodKey = useMemo(() => currentReportPeriodKey(period), [period]);
@@ -57,8 +64,18 @@ export default function Reports() {
     [periodTransactions]
   );
   const flowData = useMemo(
-    () => getSankeyData(periodTransactions, categories),
-    [periodTransactions, categories]
+    () =>
+      getSankeyData({
+        transactions,
+        categories,
+        incomeEntries,
+        incomeSources,
+        goals,
+        savingsTransfers,
+        period,
+        periodKey,
+      }),
+    [categories, goals, incomeEntries, incomeSources, period, periodKey, savingsTransfers, transactions]
   );
   const insights = useMemo(
     () => buildInsights({ categories, spending, totals }),

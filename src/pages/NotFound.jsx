@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
+import { useSession } from '../state/SessionState.jsx';
 
 export default function NotFound() {
+  const { isAuthenticated } = useSession();
+
   return (
     <div className="notfound">
       <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden="true">
@@ -19,11 +22,13 @@ export default function NotFound() {
         </div>
       </div>
       <div className="row" style={{ gap: 8 }}>
-        <Link to="/" className="btn btn--primary">
+        <Link to={isAuthenticated ? '/dashboard' : '/'} className="btn btn--primary">
           <Icon name="home" size={14} />
-          Back to dashboard
+          {isAuthenticated ? 'Back to dashboard' : 'Back to home'}
         </Link>
-        <Link to="/transactions" className="btn btn--secondary">View transactions</Link>
+        <Link to={isAuthenticated ? '/transactions' : '/auth?mode=signup'} className="btn btn--secondary">
+          {isAuthenticated ? 'View transactions' : 'Create account'}
+        </Link>
       </div>
     </div>
   );

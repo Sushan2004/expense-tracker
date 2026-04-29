@@ -4,7 +4,7 @@ import FAB from './FAB.jsx';
 import ToastHost from './ToastHost.jsx';
 import { useAppState } from '../state/AppState.jsx';
 
-const HIDE_FAB_ON = ['/signup', '/add'];
+const HIDE_FAB_ON = ['/add'];
 
 export default function Layout() {
   const { state } = useAppState();

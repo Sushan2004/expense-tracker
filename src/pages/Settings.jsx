@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 import useLocalStorage from '../hooks/useLocalStorage.js';
 import { clearStoredAppState, useAppState } from '../state/AppState.jsx';
+import { useSession } from '../state/SessionState.jsx';
 
 const GROUPS = [
   {
@@ -49,8 +51,10 @@ const THEME_OPTIONS = [
 
 export default function Settings() {
   const { state, dispatch, resolvedTheme, systemTheme } = useAppState();
+  const { currentUser, logOut } = useSession();
   const [reduceMotion, setReduceMotion] = useLocalStorage('et:reduce-motion', false);
   const [tightLists, setTightLists] = useLocalStorage('et:tight-lists', false);
+  const navigate = useNavigate();
   const hasTransactions = state.transactions.length > 0;
 
   if (state.status !== 'ready') return null;
@@ -210,12 +214,35 @@ export default function Settings() {
                   type="button"
                   className="btn btn--secondary"
                   onClick={() => {
-                    clearStoredAppState();
+                    clearStoredAppState(currentUser?.id);
                     window.location.reload();
                   }}
                 >
                   <Icon name="refresh" size={14} />
                   Clear data
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Session</div>
+            <div className="settings-list">
+              <div className="settings-row">
+                <span>
+                  <div className="settings-row__name">Log out</div>
+                  <div className="settings-row__hint">End this local demo session and return to the landing page</div>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  onClick={() => {
+                    logOut();
+                    navigate('/', { replace: true });
+                  }}
+                >
+                  <Icon name="x" size={14} />
+                  Log out
                 </button>
               </div>
             </div>
