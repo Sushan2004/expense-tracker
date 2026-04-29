@@ -35,21 +35,6 @@ const FEATURES = [
   },
 ];
 
-const STEPS = [
-  {
-    title: 'Add what came in',
-    body: 'Log your paycheck, side income, or one-off deposits and let the app calculate the rest.',
-  },
-  {
-    title: 'Track where it went',
-    body: 'Expenses, subscriptions, and recurring bills feed your budgets and reports automatically.',
-  },
-  {
-    title: 'See the bigger picture',
-    body: 'Cashflow, category trends, and savings progress stay visible without spreadsheet-level effort.',
-  },
-];
-
 export default function Landing() {
   const { isAuthenticated } = useSession();
 
@@ -201,28 +186,13 @@ export default function Landing() {
           <section className="landing-section landing-section--about" id="about">
             <div>
               <div className="landing-section__eyebrow">About</div>
-              <h2 className="landing-section__title">
-                A finance app that feels a little more <em>human</em>.
-              </h2>
+              <h2 className="landing-section__title">This is the final project for CSC 365.</h2>
               <p className="landing-section__copy">
-                Expense Tracker is built for quick clarity: what came in, what went out, what is saved,
-                and what deserves your attention next.
+                Made by Ayush and Sushan.
               </p>
               <p className="landing-about__credit">
-                A CSC 365 project by <span>Ayush</span> &amp; <span>Sushan</span>.
+                Built for <span>fun</span> and the <span>learning process</span>.
               </p>
-
-              <div className="landing-steps">
-                {STEPS.map((step, index) => (
-                  <div key={step.title} className="landing-step">
-                    <span className="landing-step__number">{index + 1}</span>
-                    <div>
-                      <h3>{step.title}</h3>
-                      <p>{step.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="landing-about-card">
@@ -255,9 +225,7 @@ export default function Landing() {
             <div className="landing-cta">
               <div className="landing-cta__text">
                 <h2>Start with the essentials, keep the insight.</h2>
-                <p className="landing-cta__sub">
-                  Free. <em>Forever.</em>
-                </p>
+                <p className="landing-cta__sub">FREE FOREVER</p>
               </div>
 
               <Link

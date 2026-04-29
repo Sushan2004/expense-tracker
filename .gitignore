@@ -5,5 +5,5 @@ dist/
 .env.*.local
 Design.md
 .claude/
-*.html
+
 
