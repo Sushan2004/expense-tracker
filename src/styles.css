@@ -1335,6 +1335,54 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 500; }
   }
 }
 
+.tx-delete__backdrop {
+  background: var(--overlay-backdrop-soft);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.tx-delete__sheet {
+  width: min(440px, 100%);
+  padding: 22px;
+  animation: tx-delete-pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tx-delete__head {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.tx-delete__message {
+  margin-top: 6px;
+  line-height: 1.6;
+  max-width: 34ch;
+}
+.tx-delete__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+@keyframes tx-delete-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-width: 639px) {
+  .tx-delete__sheet {
+    width: 100%;
+    padding: 20px 18px 18px;
+  }
+  .tx-delete__actions {
+    flex-direction: column-reverse;
+  }
+  .tx-delete__actions .btn {
+    width: 100%;
+  }
+}
+
 /* ===== Auth (signup) layout ===== */
 .auth {
   min-height: 100vh;
@@ -1400,12 +1448,87 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 500; }
 
 /* ===== 404 ===== */
 .notfound {
-  min-height: 60vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center;
-  gap: 16px;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--mint) 14%, transparent), transparent 42%),
+    var(--bg);
 }
-.notfound__big { font-size: 56px; font-weight: 500; letter-spacing: -0.04em; color: var(--forest); }
+.notfound__card {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  padding: 36px 32px;
+  background: color-mix(in srgb, var(--surface) 90%, white 10%);
+  border: 0.5px solid var(--border);
+  border-radius: calc(var(--radius-lg) + 8px);
+  box-shadow: 0 28px 60px color-mix(in srgb, var(--forest) 10%, transparent);
+}
+.notfound__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-ink);
+}
+.notfound__big {
+  font-size: clamp(56px, 10vw, 88px);
+  line-height: 0.95;
+  font-weight: 650;
+  letter-spacing: -0.06em;
+  color: var(--forest);
+}
+.notfound__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+}
+.notfound__title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.notfound__message {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.65;
+}
+.notfound__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+@media (max-width: 639px) {
+  .notfound {
+    min-height: 100dvh;
+    padding: 20px 16px;
+  }
+  .notfound__card {
+    padding: 28px 20px;
+    border-radius: calc(var(--radius-lg) + 2px);
+  }
+  .notfound__actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .notfound__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 
 /* ===== Categories grid ===== */
 .cat-grid {
@@ -3574,6 +3697,25 @@ html[data-theme="dark"] .reports-flow__focus-reset:hover {
   gap: 14px;
 }
 .settings-row__name { font-weight: 500; font-size: 14px; }
+.settings-row__title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.settings-row__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--forest) 10%, var(--surface));
+  border: 0.5px solid color-mix(in srgb, var(--forest) 16%, var(--border));
+  color: var(--accent-soft-ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 .settings-row__hint { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 .settings-row__content {
   min-width: 0;
