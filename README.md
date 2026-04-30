@@ -257,30 +257,6 @@ npm run dev
 npm run build
 ```
 
-## Notes for GitHub upload
-
-Before uploading this source code:
-
-- do **not** commit real API keys
-- keep `node_modules` out of Git
-- keep demo/local auth clearly labeled as non-production
-
-Good files/folders to include:
-
-- `src/`
-- `public/`
-- `package.json`
-- `package-lock.json`
-- `vite.config.js`
-- `README.md`
-
-Good files to avoid committing with secrets:
-
-- real API key values inside `unirateapi.env`
-- real API key values inside `logodevapi.env`
-
-## Summary
-
 This project is a **CSC 365 final project** that demonstrates how a personal finance dashboard can be built with modern frontend tools. It supports local demo auth, manual money tracking, budgeting, savings goals, reporting, theming, exports, and optional third-party API integrations.
 
 It is best described as:
