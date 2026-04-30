@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import EmptyState from '../components/EmptyState.jsx';
 import Icon from '../components/Icon.jsx';
@@ -29,6 +30,8 @@ export default function TransactionDetail() {
   const { state, dispatch } = useAppState();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const tx = state.transactions.find((transaction) => transaction.id === id) || null;
   const savingsTransfer = state.savingsTransfers.find((transfer) => transfer.id === id) || null;
@@ -99,6 +102,26 @@ export default function TransactionDetail() {
     return null;
   }, [goal, incomeSource, linkedIncomeEntry, savingsTransfer, tx]);
 
+  useEffect(() => {
+    if (!showDeleteDialog) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setShowDeleteDialog(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showDeleteDialog]);
+
   if (state.status !== 'ready') return null;
 
   if (!entry) {
@@ -126,6 +149,10 @@ export default function TransactionDetail() {
   const iconStyle = isTransfer
     ? getCategoryAccentStyle(goal?.color, 0.16)
     : getCategoryAccentStyle(category?.colorVar, 0.16);
+  const deleteTitle = isTransfer ? 'Delete savings transfer' : 'Delete transaction';
+  const deleteMessage = isTransfer
+    ? 'Are you sure you want to delete this savings transfer? This action cannot be undone.'
+    : 'Are you sure you want to delete this transaction? This action cannot be undone.';
 
   function handleCreateSource(payload) {
     const nextSource = {
@@ -142,9 +169,7 @@ export default function TransactionDetail() {
     return nextSource;
   }
 
-  function handleDelete() {
-    if (!window.confirm(isTransfer ? 'Delete this savings transfer?' : 'Delete this transaction?')) return;
-
+  function handleConfirmDelete() {
     if (isTransfer) {
       dispatch({ type: 'savingsTransfer/delete', payload: entry.id });
       dispatch({
@@ -248,7 +273,7 @@ export default function TransactionDetail() {
             <Icon name="repeat" size={14} />
             Duplicate
           </button>
-          <button type="button" className="btn btn--danger" onClick={handleDelete}>
+          <button type="button" className="btn btn--danger" onClick={() => setShowDeleteDialog(true)}>
             <Icon name="trash" size={14} />
             Delete
           </button>
@@ -330,6 +355,61 @@ export default function TransactionDetail() {
         onSave={handleSave}
         onCreateSource={handleCreateSource}
       />
+
+      {showDeleteDialog && portalTarget
+        ? createPortal(
+          <div
+            className="sheet-backdrop tx-delete__backdrop"
+            role="presentation"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setShowDeleteDialog(false);
+            }}
+          >
+            <section
+              className="sheet tx-delete__sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="transaction-delete-title"
+              aria-describedby="transaction-delete-message"
+            >
+              <div className="sheet__head tx-delete__head">
+                <div>
+                  <h2 id="transaction-delete-title" className="t-h2">{deleteTitle}</h2>
+                  <div id="transaction-delete-message" className="t-caption tx-delete__message">
+                    {deleteMessage}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="picker-sheet__close"
+                  onClick={() => setShowDeleteDialog(false)}
+                  aria-label="Close delete confirmation"
+                >
+                  <Icon name="x" size={16} strokeWidth={2} />
+                </button>
+              </div>
+
+              <div className="tx-delete__actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => setShowDeleteDialog(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  onClick={handleConfirmDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            </section>
+          </div>,
+          portalTarget
+        )
+        : null}
     </>
   );
 }

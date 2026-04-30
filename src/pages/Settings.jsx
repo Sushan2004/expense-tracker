@@ -2,34 +2,20 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BudgetPopoverSelect from '../components/BudgetPopoverSelect.jsx';
 import Icon from '../components/Icon.jsx';
-import useLocalStorage from '../hooks/useLocalStorage.js';
 import { clearStoredAppState, useAppState } from '../state/AppState.jsx';
 import { useSession } from '../state/SessionState.jsx';
 import { getCurrencyDisplayName, getCurrencySymbol } from '../utils/currencyApi.js';
 import { exportAppBackupJson, exportTransactionsCsv } from '../utils/exportData.js';
 import { formatCurrency } from '../utils/format.js';
 
-const GROUPS = [
-  {
-    title: 'Account',
-    rows: [
-      { name: 'Profile', hint: 'Name, email, avatar', icon: 'info' },
-      { name: 'Security', hint: 'Password and 2-factor', icon: 'check' },
-    ],
-  },
-  {
-    title: 'Preferences',
-    rows: [
-      { name: 'Week starts on', hint: 'Monday', icon: 'calendar' },
-    ],
-  },
-  {
-    title: 'Notifications',
-    rows: [
-      { name: 'Budget warnings', hint: 'When you hit 80% of any budget', icon: 'alert' },
-      { name: 'Monthly summary', hint: 'A short note on the 1st', icon: 'info' },
-    ],
-  },
+const ACCOUNT_ROWS = [
+  { name: 'Profile', hint: 'Name, email, avatar', icon: 'info', badge: 'Coming soon' },
+  { name: 'Security', hint: 'Password and 2-factor', icon: 'check', badge: 'Coming soon' },
+];
+
+const NOTIFICATION_ROWS = [
+  { name: 'Budget warnings', hint: 'When you hit 80% of any budget', icon: 'alert', badge: 'Coming soon' },
+  { name: 'Monthly summary', hint: 'A short note on the 1st', icon: 'info', badge: 'Coming soon' },
 ];
 
 const THEME_OPTIONS = [
@@ -53,6 +39,40 @@ const THEME_OPTIONS = [
   },
 ];
 
+function SettingsInfoRows({ rows }) {
+  return (
+    <div className="settings-list">
+      {rows.map((row) => (
+        <div key={row.name} className="settings-row">
+          <span className="row" style={{ gap: 12 }}>
+            <span
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                background: 'var(--accent-soft-bg)',
+                color: 'var(--accent-soft-ink)',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              <Icon name={row.icon} size={15} />
+            </span>
+            <span>
+              <div className="settings-row__title-row">
+                <span className="settings-row__name">{row.name}</span>
+                {row.badge ? <span className="settings-row__badge">{row.badge}</span> : null}
+              </div>
+              <div className="settings-row__hint">{row.hint}</div>
+            </span>
+          </span>
+          {row.badge ? null : <Icon name="more" size={16} stroke="var(--text-3)" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Settings() {
   const {
     state,
@@ -64,8 +84,6 @@ export default function Settings() {
     setDisplayCurrency,
   } = useAppState();
   const { currentUser, logOut } = useSession();
-  const [reduceMotion, setReduceMotion] = useLocalStorage('et:reduce-motion', false);
-  const [tightLists, setTightLists] = useLocalStorage('et:tight-lists', false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const navigate = useNavigate();
   const hasTransactions = state.transactions.length > 0;
@@ -131,8 +149,6 @@ export default function Settings() {
       settings: {
         displayCurrency: state.currency?.code || 'USD',
         baseCurrency: state.currency?.baseCode || 'USD',
-        reduceMotion,
-        tightLists,
       },
     });
     dispatch({
@@ -155,40 +171,40 @@ export default function Settings() {
 
       <div className="dash-grid" style={{ alignItems: 'start' }}>
         <div className="stack">
-          {GROUPS.map((group) => (
-            <section key={group.title}>
-              <div className="t-eyebrow" style={{ marginBottom: 8 }}>{group.title}</div>
-              <div className="settings-list">
-                {group.rows.map((row) => (
-                  <div key={row.name} className="settings-row">
-                    <span className="row" style={{ gap: 12 }}>
-                      <span
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 9,
-                          background: 'var(--accent-soft-bg)',
-                          color: 'var(--accent-soft-ink)',
-                          display: 'grid',
-                          placeItems: 'center',
-                        }}
-                      >
-                        <Icon name={row.icon} size={15} />
-                      </span>
-                      <span>
-                        <div className="settings-row__name">{row.name}</div>
-                        <div className="settings-row__hint">{row.hint}</div>
-                      </span>
-                    </span>
-                    <Icon name="more" size={16} stroke="var(--text-3)" />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Account</div>
+            <SettingsInfoRows rows={ACCOUNT_ROWS} />
+          </section>
 
-        <div className="stack">
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Notifications</div>
+            <SettingsInfoRows rows={NOTIFICATION_ROWS} />
+          </section>
+
+          <section>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Export data</div>
+            <div className="settings-list">
+              <div className="settings-row">
+                <span className="settings-row__content">
+                  <div className="settings-row__name">Download your data</div>
+                  <div className="settings-row__hint">
+                    {hasTransactions
+                      ? 'Download a transactions CSV or a full JSON backup of your app data'
+                      : 'JSON backup is ready any time. CSV becomes available after you add transactions.'}
+                  </div>
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => setIsExportOpen(true)}
+                >
+                  <Icon name="download" size={14} />
+                  Export Data
+                </button>
+              </div>
+            </div>
+          </section>
+
           <section>
             <div className="t-eyebrow" style={{ marginBottom: 8 }}>Currency</div>
             <div className="settings-list">
@@ -230,7 +246,9 @@ export default function Settings() {
               </div>
             </div>
           </section>
+        </div>
 
+        <div className="stack">
           <section>
             <div className="t-eyebrow" style={{ marginBottom: 8 }}>Appearance</div>
             <div className="appearance-grid">
@@ -282,60 +300,8 @@ export default function Settings() {
           </section>
 
           <section>
-            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Display</div>
+            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Workspace</div>
             <div className="settings-list">
-              <div className="settings-row">
-                <span>
-                  <div className="settings-row__name">Reduce motion</div>
-                  <div className="settings-row__hint">Disable shimmer and toast animations</div>
-                </span>
-                <button
-                  type="button"
-                  className={`switch${reduceMotion ? ' is-on' : ''}`}
-                  role="switch"
-                  aria-checked={reduceMotion}
-                  onClick={() => setReduceMotion(!reduceMotion)}
-                  aria-label="Reduce motion"
-                />
-              </div>
-              <div className="settings-row">
-                <span>
-                  <div className="settings-row__name">Compact lists</div>
-                  <div className="settings-row__hint">Tighter row spacing in Transactions</div>
-                </span>
-                <button
-                  type="button"
-                  className={`switch${tightLists ? ' is-on' : ''}`}
-                  role="switch"
-                  aria-checked={tightLists}
-                  onClick={() => setTightLists(!tightLists)}
-                  aria-label="Compact lists"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div className="t-eyebrow" style={{ marginBottom: 8 }}>Data</div>
-            <div className="settings-list">
-              <div className="settings-row">
-                <span className="settings-row__content">
-                  <div className="settings-row__name">Export data</div>
-                  <div className="settings-row__hint">
-                    {hasTransactions
-                      ? 'Download a transactions CSV or a full JSON backup of your app data'
-                      : 'JSON backup is ready any time. CSV becomes available after you add transactions.'}
-                  </div>
-                </span>
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setIsExportOpen(true)}
-                >
-                  <Icon name="download" size={14} />
-                  Export Data
-                </button>
-              </div>
               <div className="settings-row">
                 <span>
                   <div className="settings-row__name">Start fresh</div>

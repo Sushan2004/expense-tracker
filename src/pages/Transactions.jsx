@@ -157,10 +157,6 @@ export default function Transactions() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <button type="button" className="btn btn--secondary">
-            <Icon name="download" size={14} strokeWidth={1.8} />
-            Export
-          </button>
           <Link to="/add" className="btn btn--primary">
             <Icon name="plus" size={14} strokeWidth={2} />
             Add entry
