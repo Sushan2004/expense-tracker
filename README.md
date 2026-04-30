@@ -257,11 +257,3 @@ npm run dev
 npm run build
 ```
 
-This project is a **CSC 365 final project** that demonstrates how a personal finance dashboard can be built with modern frontend tools. It supports local demo auth, manual money tracking, budgeting, savings goals, reporting, theming, exports, and optional third-party API integrations.
-
-It is best described as:
-
-- a learning project
-- a demo finance app
-- a frontend-focused full experience without a backend
-
